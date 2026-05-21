@@ -46,7 +46,7 @@ class ProblemResponse(BaseModel):
 MOCK_PROBLEMS = [
     {"id": 1000, "title": "A+B Problem", "difficulty": "入门"},
     {"id": 1001, "title": "两数之和", "difficulty": "普及-"},
-    {"id": 1002, "title": "动态规划基础", "difficulty": "提高+/省选-"}
+    {"id": 1002, "title": "动态规划基础", "difficulty": "普及/提高-"}
 ]
 
 
