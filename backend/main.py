@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 import asyncio
 
 # 引入我们刚刚写的数据库组件
-from .database import engine, Base, get_db
-from .models import Problem
+from database import engine, Base, get_db
+from models import Problem
 
 # 自动在 SQLite 中创建所有未建立的表（如果 oj.db 不存在，会自动生成）
 Base.metadata.create_all(bind=engine)
