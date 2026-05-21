@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, shallowRef } from 'vue'
+// 核心：引入 Monaco Editor 组件
+import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 
 // --- 状态变量定义 ---
-const problemList = ref([])         // 题库列表
-const selectedProblemId = ref('')   // 选中的题目 ID
-const selectedLanguage = ref('cpp') // 选中的编程语言
+const problemList = ref([])
+const selectedProblemId = ref('')
+const selectedLanguage = ref('cpp')
 const sourceCode = ref(`// 请在此处输入你的 A+B 代码
 #include <iostream>
 using namespace std;
@@ -15,17 +17,25 @@ int main() {
     return 0;
 }`)
 
-const mockUserId = ref(1)          // 假定当前登录用户 ID 为 1 (刚才我们在 database 注入过)
-const submissionId = ref(null)     // 提交后拿到的流水号
-const judgerStatus = ref('')       // 动态评测状态：Pending -> AC
-const isSubmitting = ref(false)    // 按钮防止重复点击状态
+const mockUserId = ref(1)
+const submissionId = ref(null)
+const judgerStatus = ref('')
+const isSubmitting = ref(false)
 
-// --- 1. 页面加载时请求题库 ---
+// Monaco Editor 的专属配置
+const editorOptions = shallowRef({
+  theme: 'vs-dark',       // 极客暗黑主题
+  fontSize: 16,           // 舒适的字号
+  automaticLayout: true,  // 自动自适应大小
+  minimap: { enabled: false }, // 关闭右侧的小地图（节省空间）
+  scrollBeyondLastLine: false, // 不允许滚动超过最后一行太多
+})
+
+// --- 页面加载时请求题库 ---
 onMounted(async () => {
   try {
     const response = await fetch('http://127.0.0.1:8000/api/problems')
     problemList.value = await response.json()
-    // 默认选中第一道题
     if (problemList.value.length > 0) {
       selectedProblemId.value = problemList.value[0].id
     }
@@ -34,7 +44,7 @@ onMounted(async () => {
   }
 })
 
-// --- 2. 点击按钮：提交代码 ---
+// --- 点击按钮：提交代码 ---
 const handleCommit = async () => {
   if (!selectedProblemId.value) return alert('请先选择一道题目')
 
@@ -56,9 +66,7 @@ const handleCommit = async () => {
     const data = await response.json()
     if (response.ok) {
       submissionId.value = data.submission_id
-      judgerStatus.value = data.current_status // 此时拿到的是 "Pending"
-
-      // 开启魔法：每隔 1 秒向后端查一次状态
+      judgerStatus.value = data.current_status
       startPolling(data.submission_id)
     } else {
       judgerStatus.value = '提交失败: ' + data.detail
@@ -70,7 +78,7 @@ const handleCommit = async () => {
   }
 }
 
-// --- 3. 核心机制：长轮询状态机 ---
+// --- 核心机制：长轮询状态机 ---
 const startPolling = (subId) => {
   const timer = setInterval(async () => {
     try {
@@ -78,13 +86,10 @@ const startPolling = (subId) => {
       const data = await response.json()
 
       if (response.ok) {
-        // 更新网页上的状态字眼
         judgerStatus.value = data.status
-
-        // 如果状态不再是 Pending（说明评测机跑完了，变成了 AC 或是 WA）
         if (data.status !== 'Pending') {
-          clearInterval(timer)     // 💥 停止轮询，释放内存
-          isSubmitting.value = false // 恢复按钮点击
+          clearInterval(timer)
+          isSubmitting.value = false
         }
       }
     } catch (err) {
@@ -92,7 +97,7 @@ const startPolling = (subId) => {
       clearInterval(timer)
       isSubmitting.value = false
     }
-  }, 1000) // 每 1000 毫秒（1秒）侦听一次
+  }, 1000)
 }
 </script>
 
@@ -102,7 +107,7 @@ const startPolling = (subId) => {
       <h2>=== 题库选择 ===</h2>
       <select v-model="selectedProblemId" class="problem-select">
         <option v-for="prob in problemList" :key="prob.id" :value="prob.id">
-          #{ { prob.id } } - { { prob.title } } [{ { prob.difficulty } }]
+          #{{ prob.id }} - {{ prob.title }} [{{ prob.difficulty }}]
         </option>
       </select>
 
@@ -118,12 +123,18 @@ const startPolling = (subId) => {
       <div class="editor-header">
         <span class="title">Code Editor</span>
         <select v-model="selectedLanguage" class="lang-select">
-          <option value="cpp">C++ 17</option>
-          <option value="python">Python 3.12</option>
+          <option value="cpp">C++</option>
+          <option value="python">Python</option>
         </select>
       </div>
 
-      <textarea v-model="sourceCode" class="code-textarea" spellcheck="false"></textarea>
+      <div class="editor-container">
+        <vue-monaco-editor
+          v-model:value="sourceCode"
+          :language="selectedLanguage"
+          :options="editorOptions"
+        />
+      </div>
 
       <div class="console-box">
         <button
@@ -131,14 +142,14 @@ const startPolling = (subId) => {
           :disabled="isSubmitting"
           :class="['submit-btn', { 'btn-disabled': isSubmitting }]"
         >
-          { { isSubmitting ? '评测中...' : '提交代码' } }
+          {{ isSubmitting ? '评测中...' : '提交代码' }}
         </button>
 
         <div v-if="judgerStatus" class="status-card">
-          <p>提交流水号: <span class="text-highlight">#{ { submissionId } }</span></p>
+          <p>提交流水号: <span class="text-highlight">#{{ submissionId }}</span></p>
           <p>评测状态:
             <span :class="['badge', { 'badge-pending': judgerStatus === 'Pending', 'badge-ac': judgerStatus === 'AC' }]">
-              { { judgerStatus } }
+              {{ judgerStatus }}
             </span>
           </p>
         </div>
@@ -148,14 +159,13 @@ const startPolling = (subId) => {
 </template>
 
 <style scoped>
-/* 现代双栏极客分屏布局 */
 .oj-workspace {
   display: flex;
   gap: 20px;
   max-width: 1200px;
   margin: 30px auto;
   font-family: 'Courier New', Courier, monospace;
-  height: 80vh;
+  height: 85vh; /* 增加一点高度 */
 }
 .panel {
   flex: 1;
@@ -184,17 +194,12 @@ const startPolling = (subId) => {
   align-items: center;
   margin-bottom: 10px;
 }
-.code-textarea {
+/* 给编辑器留出明确的生长空间 */
+.editor-container {
   flex: 1;
-  background-color: #1e1e1e;
-  color: #7ec699;
-  padding: 15px;
-  font-family: consolas, Monaco, monospace;
-  font-size: 15px;
   border-radius: 6px;
-  resize: none;
-  border: none;
-  line-height: 1.4;
+  overflow: hidden;
+  border: 1px solid #444;
 }
 .console-box {
   margin-top: 15px;
@@ -220,11 +225,7 @@ const startPolling = (subId) => {
 .btn-disabled { background-color: #999 !important; cursor: not-allowed; }
 .status-card { text-align: right; font-size: 14px; }
 .text-highlight { color: #007acc; font-weight: bold; }
-.badge {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-weight: bold;
-}
+.badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; }
 .badge-pending { background-color: #ffe58f; color: #d46b08; }
 .badge-ac { background-color: #b7eb8f; color: #389e0d; }
 </style>
