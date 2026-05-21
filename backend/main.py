@@ -132,3 +132,9 @@ async def get_submission_status(submission_id: int, db: Session = Depends(get_db
         "language": submission.language,
         "created_at": submission.created_at
     }
+
+# --- 新增接口：获取历史提交大厅列表 ---
+@app.get("/api/submissions")
+async def get_all_submissions(db: Session = Depends(get_db)):
+    # 按 ID 倒序（最新提交在最前），最多拉取最新的 20 条
+    return db.query(Submission).order_by(Submission.id.desc()).limit(20).all()
