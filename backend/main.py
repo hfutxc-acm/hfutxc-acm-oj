@@ -4,20 +4,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import asyncio
 
-# 引入我们刚刚写的数据库组件
 from database import engine, Base, get_db
-from models import Problem
+from models import Problem, User, Submission
 
-# 自动在 SQLite 中创建所有未建立的表（如果 oj.db 不存在，会自动生成）
+# 启动时自动扫描并创建所有新表（users 和 submissions）
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="HFUTXC ACM OJ API",
-    description="在线评测系统后端核心接口（SQLite 驱动版）",
-    version="1.1.0"
-)
+app = FastAPI(title="HFUTXC ACM OJ API", version="1.2.0")
 
-# 配置跨域
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,59 +20,102 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic 模型（用于 API 数据校验）
+
+# Pydantic 核心模型：用于接收前端传来的 JSON
 class SubmitCodeRequest(BaseModel):
+    user_id: int  # 新增：告诉后端是谁提交的
     problem_id: int
     language: str
     code: str
 
-# 核心业务：异步评测占位
-async def run_judger_worker(submission_id: int, code: str, lang: str):
-    print(f"[评测机] 正在编译运行提交 #{submission_id}, 语言: {lang}...")
-    await asyncio.sleep(2)
-    print(f"[评测机] 提交 #{submission_id} 评测完成！结果: AC")
+
+# 异步评测核心工作流占位
+async def run_judger_worker(submission_id: int, db_session_factory, code: str, lang: str):
+    """
+    异步评测任务。由于要在后台线程更新数据库，
+    我们传入 db_session_factory 用来在需要时创建独立的数据库连接。
+    """
+    print(f"[评测机] 收到提交记录 #{submission_id}，启动评测流...")
+
+    # 模拟评测机编译运行需要 3 秒
+    await asyncio.sleep(3)
+
+    # 评测完成后，我们要把结果同步更新到刚才建的数据库表里
+    db = db_session_factory()
+    try:
+        submission = db.query(Submission).filter(Submission.id == submission_id).first()
+        if submission:
+            submission.status = "AC"  # 模拟评测通过，真实情况这里由 C++ 评测机决定
+            db.commit()
+            print(f"[评测机] 提交记录 #{submission_id} 状态已更新为: AC")
+    finally:
+        db.close()
+
 
 # ==========================================
-# 5. API 路由设计（真正连接数据库）
+# 路由接口开发
 # ==========================================
 
-@app.get("/")
-async def root():
-    return {"message": "Hello, OJ 正常运行在 SQLite 驱动下！"}
-
-# --- 1. 获取全站题目列表 ---
 @app.get("/api/problems")
 async def get_problem_list(db: Session = Depends(get_db)):
-    # 这一行就是 SQLAlchemy 的黑魔法，相当于执行了 SELECT * FROM problems;
-    problems = db.query(Problem).all()
-    return problems
+    return db.query(Problem).all()
 
-# --- 2. 管理员专用：快捷创建题目（方便我们测试） ---
+
 @app.post("/api/admin/problems")
 async def create_problem(title: str, difficulty: str, db: Session = Depends(get_db)):
-    # 创建一个题目对象
     new_problem = Problem(title=title, difficulty=difficulty)
-    # 塞进数据库并提交
     db.add(new_problem)
     db.commit()
-    db.refresh(new_problem)  # 刷新以获取自动生成的 id
-    return {"message": "题目创建成功", "problem": new_problem}
+    db.refresh(new_problem)
+    return new_problem
 
-# --- 3. 获取单道题目详情 ---
-@app.get("/api/problems/{problem_id}")
-async def get_problem_detail(problem_id: int, db: Session = Depends(get_db)):
-    problem = db.query(Problem).filter(Problem.id == problem_id).first()
-    if not problem:
-        raise HTTPException(status_code=404, detail="题目不存在")
-    return problem
 
-# --- 4. 提交代码 ---
+# --- 新增接口：快捷创建测试用户 ---
+@app.post("/api/admin/users")
+async def create_user(username: str, db: Session = Depends(get_db)):
+    # 先写死一个简易的哈希占位密码
+    new_user = User(username=username, hashed_password="mock_hashed_password")
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "用户创建成功", "user": new_user}
+
+
+# --- 重构核心业务：提交代码并生成真实记录 ---
 @app.post("/api/submit")
-async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks):
-    mock_submission_id = 9527
-    background_tasks.add_task(run_judger_worker, mock_submission_id, req.code, req.language)
+async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. 严格检查：提交的题目和用户是否存在，如果不存在直接拦截，防止外键冲突
+    problem = db.query(Problem).filter(Problem.id == req.problem_id).first()
+    user = db.query(User).filter(User.id == req.user_id).first()
+    if not problem or not user:
+        raise HTTPException(status_code=400, detail="用户或题目不存在，无法提交记录")
+
+    # 2. 在 submissions 表中新建一条真实的 Pending 记录
+    new_submission = Submission(
+        user_id=req.user_id,
+        problem_id=req.problem_id,
+        language=req.language,
+        code=req.code,
+        status="Pending"  # 一开始的状态是排队中
+    )
+    db.add(new_submission)
+    db.commit()
+    db.refresh(new_submission)  # 这一步执行完，我们就拿到了自增的真实 submission.id
+
+    # 3. 将这个真实的自增 ID 丢给后台的异步工作线程
+    # 注意：我们这里把 SessionLocal 传进去，方便后台任务在未来独立连接数据库
+    from database import SessionLocal
+    background_tasks.add_task(
+        run_judger_worker,
+        new_submission.id,
+        SessionLocal,
+        req.code,
+        req.language
+    )
+
+    # 4. 立刻向前端交卷
     return {
-        "message": "代码已提交，评测排队中...",
-        "submission_id": mock_submission_id,
-        "status": "Pending"
+        "message": "代码提交成功，已进入评测队列",
+        "submission_id": new_submission.id,
+        "current_status": "Pending"
     }
