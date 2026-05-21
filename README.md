@@ -1,7 +1,5 @@
 # hfutxc-acm-oj
 
-## Language
-
 - [中文](#中文)
 - [English](#english)
 
