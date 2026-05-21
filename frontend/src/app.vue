@@ -20,7 +20,7 @@ onMounted(async () => {
 
 <template>
   <div class="oj-container">
-    <h1>HFUTXC ACM 题库列表</h1>
+    <h1>题库列表</h1>
 
     <table class="oj-table">
       <thead>
