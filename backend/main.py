@@ -119,3 +119,16 @@ async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks,
         "submission_id": new_submission.id,
         "current_status": "Pending"
     }
+
+# --- 新增接口：查询指定提交记录的状态 ---
+@app.get("/api/submissions/{submission_id}")
+async def get_submission_status(submission_id: int, db: Session = Depends(get_db)):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交记录不存在")
+    return {
+        "id": submission.id,
+        "status": submission.status,
+        "language": submission.language,
+        "created_at": submission.created_at
+    }
