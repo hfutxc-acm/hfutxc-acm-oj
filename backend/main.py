@@ -43,7 +43,7 @@ class ProblemResponse(BaseModel):
 
 
 # 模拟数据库（假数据，后期这里会换成读取 SQLite）
-MOCK_PROBLEMS = [
+PROBLEMS = [
     {"id": 1000, "title": "A+B Problem", "difficulty": "入门"},
     {"id": 1001, "title": "两数之和", "difficulty": "普及-"},
     {"id": 1002, "title": "动态规划基础", "difficulty": "普及/提高-"}
@@ -70,20 +70,20 @@ async def run_judger_worker(submission_id: int, code: str, lang: str):
 # --- 系统探针接口 ---
 @app.get("/")
 async def root():
-    return {"message": "Hello, 洛谷青年！OJ Backend 正常运行中！"}
+    return {"message": "你好，OJ Backend 正常运行中！"}
 
 
 # --- 题目相关接口 ---
 @app.get("/api/problems", response_model=list[ProblemResponse])
 async def get_problem_list():
     """获取全站题目列表"""
-    return MOCK_PROBLEMS
+    return PROBLEMS
 
 
 @app.get("/api/problems/{problem_id}")
 async def get_problem_detail(problem_id: int):
     """获取单道题目的详情"""
-    for p in MOCK_PROBLEMS:
+    for p in PROBLEMS:
         if p["id"] == problem_id:
             return p
     # 如果没找到这道题，直接返回 404
@@ -96,14 +96,14 @@ async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks)
     """用户在前端点击'提交代码'时触发的接口"""
 
     # 1. (未来) 将用户的提交信息存入 SQLite，生成一个自增的提交 ID，状态为 Pending
-    mock_submission_id = 9527
+    submission_id = 9527
 
     # 2. 将代码丢给后台去慢慢评测 (不阻塞主线程，网页可以瞬间拿到响应)
-    background_tasks.add_task(run_judger_worker, mock_submission_id, req.code, req.language)
+    background_tasks.add_task(run_judger_worker, submission_id, req.code, req.language)
 
     # 3. 立即回复前端
     return {
         "message": "代码已提交，评测排队中...",
-        "submission_id": mock_submission_id,
+        "submission_id": submission_id,
         "status": "Pending"
     }
