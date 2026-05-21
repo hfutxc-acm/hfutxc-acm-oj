@@ -33,7 +33,7 @@ const editorOptions = shallowRef({
 // 💡 魔法 1：利用计算属性，智能匹配当前选中题目的详细信息
 const currentProblem = computed(() => {
   if (!selectedProblemId.value) return null
-  return problemList.value.find(p => p.id === selectedProblemId.value)
+  return problemList.value.find(p => p.id == selectedProblemId.value)
 })
 
 // --- 页面初始化时拉取数据 ---

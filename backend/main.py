@@ -62,8 +62,8 @@ async def get_problem_list(db: Session = Depends(get_db)):
 
 
 @app.post("/api/admin/problems")
-async def create_problem(title: str, difficulty: str, db: Session = Depends(get_db)):
-    new_problem = Problem(title=title, difficulty=difficulty)
+async def create_problem(title: str, difficulty: str, description: str = "这是默认题面描述", db: Session = Depends(get_db)):
+    new_problem = Problem(title=title, difficulty=difficulty, description=description) # 👈 加上 description
     db.add(new_problem)
     db.commit()
     db.refresh(new_problem)
