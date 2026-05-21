@@ -7,14 +7,10 @@ import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 const problemList = ref([])
 const selectedProblemId = ref('')
 const selectedLanguage = ref('cpp')
-const sourceCode = ref(`// 请在此处输入你的 A+B 代码
-#include <iostream>
+const sourceCode = ref(`#include <bits/stdc++.h>
 using namespace std;
 int main() {
-    int a, b;
-    cin >> a >> b;
-    cout << a + b;
-    return 0;
+
 }`)
 
 const mockUserId = ref(1)
