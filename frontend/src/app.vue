@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, shallowRef, computed } from 'vue'
+import { ref, onMounted, onUnmounted, shallowRef, computed } from 'vue'
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 
 // --- 状态变量定义 ---
@@ -21,6 +21,14 @@ const submissionId = ref(null)
 const judgerStatus = ref('')
 const isSubmitting = ref(false)
 const historyList = ref([]) // 新增：用于存放历史提交记录的数组
+const isCreatingProblem = ref(false)
+const adminMessage = ref('')
+const currentPage = ref('judge')
+const newProblem = ref({
+  title: '',
+  difficulty: 'Easy',
+  description: ''
+})
 
 const editorOptions = shallowRef({
   theme: 'vs-dark',
@@ -36,10 +44,28 @@ const currentProblem = computed(() => {
   return problemList.value.find(p => p.id == selectedProblemId.value)
 })
 
+const syncPageFromHash = () => {
+  currentPage.value = window.location.hash === '#/admin' ? 'admin' : 'judge'
+}
+
+const navigateTo = (page) => {
+  window.location.hash = page === 'admin' ? '#/admin' : '#/judge'
+  syncPageFromHash()
+}
+
 // --- 页面初始化时拉取数据 ---
 onMounted(async () => {
+  if (!window.location.hash) {
+    window.location.hash = '#/judge'
+  }
+  syncPageFromHash()
+  window.addEventListener('hashchange', syncPageFromHash)
   await fetchProblems()
   await fetchHistory()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncPageFromHash)
 })
 
 const fetchProblems = async () => {
@@ -60,6 +86,43 @@ const fetchHistory = async () => {
       historyList.value = await response.json()
     }
   } catch (error) { console.error("历史记录加载失败:", error) }
+}
+
+// --- 管理端：创建题目 ---
+const handleCreateProblem = async () => {
+  if (!newProblem.value.title.trim()) {
+    adminMessage.value = '请填写题目标题'
+    return
+  }
+
+  isCreatingProblem.value = true
+  adminMessage.value = '正在创建题目...'
+
+  const params = new URLSearchParams({
+    title: newProblem.value.title.trim(),
+    difficulty: newProblem.value.difficulty,
+    description: newProblem.value.description.trim() || '这是默认题面描述'
+  })
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/admin/problems?${params.toString()}`, {
+      method: 'POST'
+    })
+    const data = await response.json()
+
+    if (response.ok) {
+      adminMessage.value = `题目 #${data.id} 创建成功`
+      newProblem.value = { title: '', difficulty: 'Easy', description: '' }
+      await fetchProblems()
+      selectedProblemId.value = data.id
+    } else {
+      adminMessage.value = '创建失败: ' + (data.detail || '未知错误')
+    }
+  } catch (error) {
+    adminMessage.value = '网络异常，无法创建题目'
+  } finally {
+    isCreatingProblem.value = false
+  }
 }
 
 // --- 核心提交逻辑 ---
@@ -145,30 +208,71 @@ const formatTime = (timeStr) => {
 </script>
 
 <template>
-  <div class="oj-container">
-    <div class="oj-workspace">
-      <div class="panel left-panel">
-        <h2>=== 题库选择 ===</h2>
-        <select v-model="selectedProblemId" class="problem-select">
+  <main class="oj-page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">HFUTXC ACM OJ</p>
+        <h1>{{ currentPage === 'admin' ? '题目管理后台' : '在线评测工作台' }}</h1>
+      </div>
+      <div class="topbar-actions">
+        <nav class="page-tabs" aria-label="主导航">
+          <button :class="{ active: currentPage === 'judge' }" @click="navigateTo('judge')">评测工作台</button>
+          <button :class="{ active: currentPage === 'admin' }" @click="navigateTo('admin')">题目管理</button>
+        </nav>
+        <div class="topbar-meta">
+          <span>{{ problemList.length }} 道题目</span>
+          <span>测试用户 #{{ mockUserId }}</span>
+        </div>
+      </div>
+    </header>
+
+    <section v-if="currentPage === 'judge'" class="workspace">
+      <aside class="panel problem-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Problem</p>
+            <h2>题目</h2>
+          </div>
+          <span v-if="currentProblem" class="difficulty">{{ currentProblem.difficulty }}</span>
+        </div>
+
+        <label class="field-label" for="problem-select">题目列表</label>
+        <select id="problem-select" v-model="selectedProblemId" class="control problem-select">
+          <option value="" disabled>请选择题目</option>
           <option v-for="prob in problemList" :key="prob.id" :value="prob.id">
-            #{{ prob.id }} - {{ prob.title }} [{{ prob.difficulty }}]
+            #{{ prob.id }} - {{ prob.title }}
           </option>
         </select>
 
-        <div class="problem-body" v-if="currentProblem">
-          <h3>题目描述</h3>
-          <p>{{ currentProblem.description || "管理员太懒了，还没有写题目描述..." }}</p>
-          <div v-if="currentProblem.id === 1" class="mock-desc">
-            <p><strong>输入格式：</strong> 一行两个整数。</p>
-            <p><strong>输出格式：</strong> 一行一个整数。</p>
+        <div v-if="currentProblem" class="problem-body">
+          <div class="problem-title-row">
+            <h3>{{ currentProblem.title }}</h3>
+            <span>#{{ currentProblem.id }}</span>
+          </div>
+          <p>{{ currentProblem.description || "暂无题目描述。" }}</p>
+
+          <div v-if="currentProblem.id === 1" class="format-box">
+            <div>
+              <strong>输入格式</strong>
+              <p>一行两个整数。</p>
+            </div>
+            <div>
+              <strong>输出格式</strong>
+              <p>一行一个整数。</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="panel right-panel">
-        <div class="editor-header">
-          <span class="title">Code Editor</span>
-          <select v-model="selectedLanguage" class="lang-select">
+        <div v-else class="empty-state">暂无题目，请先在题目管理中创建。</div>
+      </aside>
+
+      <section class="panel editor-panel">
+        <div class="section-head editor-toolbar">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2>代码编辑</h2>
+          </div>
+          <select v-model="selectedLanguage" class="control lang-select">
             <option value="cpp">C++ 17</option>
             <option value="python">Python 3.12</option>
           </select>
@@ -183,116 +287,621 @@ const formatTime = (timeStr) => {
           />
         </div>
 
-        <div class="console-box">
-          <button @click="handleCommit" :disabled="isSubmitting" :class="['submit-btn', { 'btn-disabled': isSubmitting }]">
+        <footer class="submit-bar">
+          <button @click="handleCommit" :disabled="isSubmitting" class="submit-btn">
             {{ isSubmitting ? '评测中...' : '提交代码' }}
           </button>
-          <div v-if="judgerStatus" class="status-card">
-            <p>当前提交流水号: <span class="text-highlight">#{{ submissionId }}</span></p>
-            <p>实时状态:
-              <span :class="['badge', { 'badge-pending': judgerStatus === 'Pending', 'badge-ac': judgerStatus === 'AC', 'badge-error': ['WA', 'CE', 'RE', 'TLE'].includes(judgerStatus) }]">
-                {{ judgerStatus }}
-              </span>
-            </p>
+          <div class="status-card" :class="{ muted: !judgerStatus }">
+            <span>流水号 {{ submissionId ? `#${submissionId}` : '-' }}</span>
+            <span
+              :class="['badge', {
+                'badge-pending': judgerStatus === 'Pending',
+                'badge-ac': judgerStatus === 'AC',
+                'badge-error': ['WA', 'CE', 'RE', 'TLE'].includes(judgerStatus)
+              }]"
+            >
+              {{ judgerStatus || '未提交' }}
+            </span>
+          </div>
+        </footer>
+      </section>
+    </section>
+
+    <section v-if="currentPage === 'admin'" class="admin-page">
+      <section class="panel admin-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2>新增题目</h2>
           </div>
         </div>
-      </div>
-    </div>
+        <form class="admin-form" @submit.prevent="handleCreateProblem">
+          <label class="form-field">
+            <span>标题</span>
+            <input
+              v-model="newProblem.title"
+              class="control"
+              type="text"
+              placeholder="例如：A+B Problem"
+            />
+          </label>
+          <label class="form-field">
+            <span>难度</span>
+            <select v-model="newProblem.difficulty" class="control">
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </label>
+          <label class="form-field span-all">
+            <span>描述</span>
+            <textarea
+              v-model="newProblem.description"
+              class="control admin-textarea"
+              placeholder="输入题面描述"
+            ></textarea>
+          </label>
+          <button class="admin-btn" type="submit" :disabled="isCreatingProblem">
+            {{ isCreatingProblem ? '创建中...' : '新增题目' }}
+          </button>
+        </form>
+        <p v-if="adminMessage" class="admin-message">{{ adminMessage }}</p>
+      </section>
 
-    <div class="history-panel">
-      <h3>=== 最新评测记录 ===</h3>
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th>运行 ID</th>
-            <th>题目 ID</th>
-            <th>语言</th>
-            <th>提交时间</th>
-            <th>评测状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="sub in historyList" :key="sub.id">
-            <td class="col-id">#{{ sub.id }}</td>
-            <td>Problem {{ sub.problem_id }}</td>
-            <td class="col-lang">{{ sub.language }}</td>
-            <td class="col-time">{{ formatTime(sub.created_at) }}</td>
-            <td class="col-status">
-              <span :class="['status-text', { 'is-ac': sub.status === 'AC', 'is-pending': sub.status === 'Pending', 'is-err': ['WA', 'CE', 'RE', 'TLE'].includes(sub.status) }]">
-                {{ sub.status }}
-              </span>
-            </td>
-          </tr>
-          <tr v-if="historyList.length === 0">
-            <td colspan="5" style="text-align: center; color: #888;">暂无提交记录，去拿下你的第一个 AC 吧！</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+      <section class="panel problem-list-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Problems</p>
+            <h2>题目列表</h2>
+          </div>
+        </div>
+
+        <div class="problem-list">
+          <article v-for="prob in problemList" :key="prob.id" class="problem-item">
+            <div>
+              <h3>#{{ prob.id }} {{ prob.title }}</h3>
+              <p>{{ prob.description || '暂无题目描述。' }}</p>
+            </div>
+            <span class="difficulty">{{ prob.difficulty }}</span>
+          </article>
+          <div v-if="problemList.length === 0" class="empty-state">暂无题目。</div>
+        </div>
+      </section>
+    </section>
+
+    <section v-if="currentPage === 'judge'" class="submissions-section">
+      <section class="panel history-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Submissions</p>
+            <h2>最新评测记录</h2>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>运行 ID</th>
+                <th>题目 ID</th>
+                <th>语言</th>
+                <th>提交时间</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sub in historyList" :key="sub.id">
+                <td class="col-id">#{{ sub.id }}</td>
+                <td>Problem {{ sub.problem_id }}</td>
+                <td><span class="lang-pill">{{ sub.language }}</span></td>
+                <td class="col-time">{{ formatTime(sub.created_at) }}</td>
+                <td>
+                  <span :class="['status-text', { 'is-ac': sub.status === 'AC', 'is-pending': sub.status === 'Pending', 'is-err': ['WA', 'CE', 'RE', 'TLE'].includes(sub.status) }]">
+                    {{ sub.status }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="historyList.length === 0">
+                <td colspan="5" class="empty-row">暂无提交记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-.oj-container {
-  max-width: 1200px;
+.oj-page {
+  width: min(1440px, 100%);
   margin: 0 auto;
-  padding: 20px 0;
-  font-family: 'Courier New', Courier, monospace;
+  padding: 24px;
 }
-.oj-workspace {
+
+.topbar {
+  align-items: center;
   display: flex;
-  gap: 20px;
-  height: 65vh; /* 稍微压缩高度给下面的表格腾地方 */
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
 }
-.panel {
-  flex: 1;
-  border: 2px solid #333;
+
+.topbar-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.page-tabs {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.page-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  font-weight: 750;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.page-tabs button.active {
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+
+.topbar h1,
+.section-head h2,
+.problem-body h3 {
+  color: #111827;
+  margin: 0;
+}
+
+.topbar h1 {
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.eyebrow {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.topbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.topbar-meta span,
+.difficulty {
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  color: #075985;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.workspace {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(520px, 1.35fr);
+  min-height: 640px;
+}
+
+.submissions-section {
+  margin-top: 20px;
+}
+
+.admin-page {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(380px, 0.82fr) minmax(520px, 1.18fr);
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #d7dde7;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  min-width: 0;
   padding: 20px;
-  background-color: #fafafa;
+}
+
+.problem-panel,
+.editor-panel {
   display: flex;
   flex-direction: column;
 }
-.problem-select, .lang-select { padding: 8px; font-size: 16px; border: 2px solid #333; border-radius: 4px; margin-bottom: 15px; }
-.problem-body { border-top: 1px dashed #ccc; margin-top: 10px; line-height: 1.6; padding-top: 10px;}
-.mock-desc { margin-top: 15px; background: #eee; padding: 10px; border-radius: 4px;}
-.editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.editor-container { flex: 1; border-radius: 6px; overflow: hidden; border: 1px solid #444; }
-.console-box { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 15px; border-radius: 6px; }
-.submit-btn { background-color: #007acc; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; }
-.submit-btn:hover { background-color: #005999; }
-.btn-disabled { background-color: #999 !important; cursor: not-allowed; }
-.status-card { text-align: right; font-size: 14px; }
-.badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; }
-.badge-pending { background-color: #ffe58f; color: #d46b08; }
-.badge-ac { background-color: #b7eb8f; color: #389e0d; }
-.badge-error { background-color: #ffa39e; color: #a8071a; }
 
-/* 历史记录表格样式 */
-.history-panel {
-  margin-top: 20px;
-  border: 2px solid #333;
-  border-radius: 8px;
-  padding: 20px;
-  background-color: #fafafa;
+.section-head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.history-table {
+
+.section-head h2 {
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.field-label,
+.form-field span {
+  color: #475569;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.control {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #111827;
+  min-height: 42px;
+  outline: none;
+  padding: 9px 11px;
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
 }
-.history-table th, .history-table td {
-  padding: 12px;
+
+.control:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.14);
+}
+
+.problem-select {
+  margin-bottom: 18px;
+}
+
+.problem-body {
+  border-top: 1px solid #e2e8f0;
+  color: #334155;
+  line-height: 1.75;
+  overflow: auto;
+  padding-top: 18px;
+}
+
+.problem-title-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.problem-title-row h3 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.problem-title-row span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.problem-body p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.format-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px;
+}
+
+.format-box strong {
+  color: #111827;
+}
+
+.empty-state,
+.empty-row {
+  color: #64748b;
   text-align: center;
-  border-bottom: 1px solid #ddd;
 }
-.history-table th { background-color: #eee; font-weight: bold; }
-.history-table tbody tr:hover { background-color: #f5f5f5; }
-.col-id { font-weight: bold; color: #555; }
-.col-lang { font-family: monospace; background: #eaeaea; padding: 2px 6px; border-radius: 4px; }
-.col-time { color: #888; font-size: 14px; }
-.status-text { font-weight: bold; }
-.is-ac { color: #389e0d; }
-.is-pending { color: #d46b08; }
-.is-err { color: #cf1322; }
+
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 32px 16px;
+}
+
+.editor-toolbar {
+  align-items: center;
+}
+
+.lang-select {
+  max-width: 160px;
+}
+
+.editor-container {
+  border: 1px solid #111827;
+  border-radius: 8px;
+  flex: 1;
+  min-height: 460px;
+  overflow: hidden;
+}
+
+.submit-bar {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.submit-btn,
+.admin-btn {
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 750;
+  min-height: 42px;
+  padding: 0 18px;
+}
+
+.submit-btn {
+  background: #0284c7;
+}
+
+.submit-btn:hover,
+.admin-btn:hover {
+  filter: brightness(0.95);
+}
+
+.submit-btn:disabled,
+.admin-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.status-card {
+  align-items: center;
+  color: #334155;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.status-card.muted {
+  color: #64748b;
+}
+
+.badge {
+  background: #e2e8f0;
+  border-radius: 999px;
+  color: #334155;
+  font-weight: 750;
+  padding: 5px 10px;
+}
+
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-ac {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.admin-form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 150px;
+}
+
+.form-field {
+  min-width: 0;
+}
+
+.span-all {
+  grid-column: 1 / -1;
+}
+
+.admin-textarea {
+  min-height: 118px;
+  resize: vertical;
+}
+
+.admin-btn {
+  background: #0f766e;
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.admin-message {
+  color: #334155;
+  font-size: 14px;
+  margin: 12px 0 0;
+}
+
+.problem-list {
+  display: grid;
+  gap: 12px;
+}
+
+.problem-item {
+  align-items: flex-start;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.problem-item h3 {
+  color: #111827;
+  font-size: 16px;
+  line-height: 1.35;
+  margin: 0 0 6px;
+}
+
+.problem-item p {
+  color: #475569;
+  display: -webkit-box;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.history-table {
+  border-collapse: collapse;
+  min-width: 620px;
+  width: 100%;
+}
+
+.history-table th,
+.history-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 13px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.history-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.history-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.col-id {
+  color: #0f172a;
+  font-weight: 750;
+}
+
+.col-time {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.lang-pill {
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #3730a3;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 9px;
+}
+
+.status-text {
+  font-weight: 800;
+}
+
+.is-ac {
+  color: #15803d;
+}
+
+.is-pending {
+  color: #b45309;
+}
+
+.is-err {
+  color: #b91c1c;
+}
+
+@media (max-width: 1100px) {
+  .workspace,
+  .admin-page {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace {
+    min-height: 0;
+  }
+
+  .editor-container {
+    min-height: 440px;
+  }
+}
+
+@media (max-width: 720px) {
+  .oj-page {
+    padding: 14px;
+  }
+
+  .topbar,
+  .submit-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions {
+    align-items: stretch;
+  }
+
+  .page-tabs {
+    width: 100%;
+  }
+
+  .page-tabs button {
+    flex: 1;
+  }
+
+  .topbar-meta,
+  .status-card {
+    justify-content: flex-start;
+  }
+
+  .admin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-btn {
+    justify-self: stretch;
+  }
+}
 </style>
