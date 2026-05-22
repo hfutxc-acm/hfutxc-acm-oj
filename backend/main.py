@@ -392,16 +392,48 @@ async def delete_problem(
     if not problem:
         raise HTTPException(status_code=404, detail="题目不存在")
 
-    problem_dir = (DATA_ROOT / str(problem_id)).resolve()
-    if problem_dir.exists():
-        data_root = DATA_ROOT.resolve()
-        if problem_dir.parent != data_root:
-            raise HTTPException(status_code=400, detail="非法题目数据目录")
-        shutil.rmtree(problem_dir)
+    try:
+        submission_ids = [
+            row.id
+            for row in db.query(Submission.id).filter(Submission.problem_id == problem_id).all()
+        ]
+        testcase_ids = [
+            row.id
+            for row in db.query(TestCase.id).filter(TestCase.problem_id == problem_id).all()
+        ]
 
-    db.delete(problem)
-    db.commit()
-    return {"message": "problem deleted", "problem_id": problem_id}
+        if submission_ids:
+            db.query(SubmissionResult).filter(
+                SubmissionResult.submission_id.in_(submission_ids)
+            ).delete(synchronize_session=False)
+        if testcase_ids:
+            db.query(SubmissionResult).filter(
+                SubmissionResult.testcase_id.in_(testcase_ids)
+            ).delete(synchronize_session=False)
+
+        db.query(Submission).filter(
+            Submission.problem_id == problem_id
+        ).delete(synchronize_session=False)
+        db.query(TestCase).filter(
+            TestCase.problem_id == problem_id
+        ).delete(synchronize_session=False)
+
+        problem_dir = (DATA_ROOT / str(problem_id)).resolve()
+        if problem_dir.exists():
+            data_root = DATA_ROOT.resolve()
+            if problem_dir.parent != data_root:
+                raise HTTPException(status_code=400, detail="非法题目数据目录")
+            shutil.rmtree(problem_dir)
+
+        db.delete(problem)
+        db.commit()
+        return {"message": "Problem deleted successfully", "problem_id": problem_id}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(exc)}")
 
 
 @app.post("/api/admin/problems/{problem_id}/testcases/upload")
