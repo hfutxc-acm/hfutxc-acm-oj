@@ -86,6 +86,10 @@ class SubmitCodeRequest(BaseModel):
     code: str
 
 
+class DeleteProblemConfirm(BaseModel):
+    confirm_problem_id: int
+
+
 def testcase_count(problem: Problem) -> int:
     return len(problem.testcases or [])
 
@@ -376,7 +380,14 @@ async def update_problem(problem_id: int, payload: ProblemPayload, db: Session =
 
 
 @app.delete("/api/admin/problems/{problem_id}")
-async def delete_problem(problem_id: int, db: Session = Depends(get_db)):
+async def delete_problem(
+    problem_id: int,
+    confirm: DeleteProblemConfirm = Body(...),
+    db: Session = Depends(get_db),
+):
+    if confirm.confirm_problem_id != problem_id:
+        raise HTTPException(status_code=400, detail="确认题号不匹配，已取消删除")
+
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
         raise HTTPException(status_code=404, detail="题目不存在")

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { getProblems } from '../api/problems'
-import { getTestcases, uploadProblemData } from '../api/admin'
+import { deleteProblem, getTestcases, uploadProblemData } from '../api/admin'
 import DifficultyBadge from '../components/problem/DifficultyBadge.vue'
 import { navigateTo } from '../router'
 
@@ -11,6 +11,10 @@ const selectedFile = ref(null)
 const testcases = ref([])
 const message = ref('')
 const uploading = ref(false)
+const deleting = ref(false)
+const deleteTarget = ref(null)
+const deleteConfirmId = ref('')
+const deleteMessage = ref('')
 
 async function refreshProblems() {
   problems.value = await getProblems()
@@ -47,6 +51,45 @@ async function uploadZip() {
   }
 }
 
+function openDeleteConfirm(problem) {
+  deleteTarget.value = problem
+  deleteConfirmId.value = ''
+  deleteMessage.value = ''
+}
+
+function cancelDelete() {
+  deleteTarget.value = null
+  deleteConfirmId.value = ''
+  deleteMessage.value = ''
+}
+
+async function confirmDeleteProblem() {
+  if (!deleteTarget.value) return
+  if (String(deleteConfirmId.value).trim() !== String(deleteTarget.value.id)) {
+    deleteMessage.value = '输入的题号不一致，无法删除'
+    return
+  }
+
+  deleting.value = true
+  deleteMessage.value = '正在删除题目...'
+  try {
+    await deleteProblem(deleteTarget.value.id, deleteConfirmId.value)
+    deleteMessage.value = `题目 #${deleteTarget.value.id} 已删除`
+    if (String(selectedProblemId.value) === String(deleteTarget.value.id)) {
+      selectedProblemId.value = ''
+      testcases.value = []
+    }
+    deleteTarget.value = null
+    deleteConfirmId.value = ''
+    await refreshProblems()
+    await loadTestcases()
+  } catch (error) {
+    deleteMessage.value = error.message
+  } finally {
+    deleting.value = false
+  }
+}
+
 onMounted(async () => {
   await refreshProblems()
   await loadTestcases()
@@ -79,6 +122,24 @@ onMounted(async () => {
       </div>
     </div>
 
+    <div v-if="deleteTarget" class="panel danger-panel">
+      <h2>删除题目确认</h2>
+      <p class="hint">
+        即将删除题目 #{{ deleteTarget.id }}「{{ deleteTarget.title }}」。该操作会删除题目、测试点记录和测试数据目录。
+      </p>
+      <label class="delete-confirm-field">
+        <span>请输入题目编号 #{{ deleteTarget.id }} 以确认删除</span>
+        <input v-model="deleteConfirmId" class="control" type="number" :placeholder="String(deleteTarget.id)" />
+      </label>
+      <div class="action-row">
+        <button class="danger-btn" :disabled="deleting" @click="confirmDeleteProblem">
+          {{ deleting ? '删除中...' : '确认删除' }}
+        </button>
+        <button class="ghost-btn" @click="cancelDelete">取消</button>
+        <span v-if="deleteMessage" class="form-message">{{ deleteMessage }}</span>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr><th>题号</th><th>标题</th><th>难度</th><th>标签</th><th>公开</th><th>测试数据</th><th>创建者</th><th>更新时间</th><th>操作</th></tr></thead>
@@ -95,6 +156,7 @@ onMounted(async () => {
             <td class="action-cell">
               <button class="ghost-btn small" @click="navigateTo(`/problems/${problem.id}`)">预览</button>
               <button class="primary-btn small" @click="navigateTo(`/admin/problems/${problem.id}/edit`)">编辑</button>
+              <button class="danger-btn small" @click="openDeleteConfirm(problem)">删除</button>
             </td>
           </tr>
         </tbody>

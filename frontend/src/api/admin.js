@@ -14,9 +14,10 @@ export function updateProblem(id, payload) {
   })
 }
 
-export function deleteProblem(id) {
+export function deleteProblem(id, confirmProblemId) {
   return request(`/api/admin/problems/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    body: JSON.stringify({ confirm_problem_id: Number(confirmProblemId) })
   })
 }
 

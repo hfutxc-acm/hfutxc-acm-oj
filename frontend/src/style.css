@@ -335,7 +335,8 @@ button {
 }
 
 .primary-btn,
-.ghost-btn {
+.ghost-btn,
+.danger-btn {
   min-height: 40px;
   padding: 0 16px;
   border-radius: 7px;
@@ -355,14 +356,22 @@ button {
   color: #334155;
 }
 
+.danger-btn {
+  border: 0;
+  background: var(--danger);
+  color: #ffffff;
+}
+
 .primary-btn.small,
-.ghost-btn.small {
+.ghost-btn.small,
+.danger-btn.small {
   min-height: 32px;
   padding: 0 10px;
   font-size: 13px;
 }
 
-.primary-btn:disabled {
+.primary-btn:disabled,
+.danger-btn:disabled {
   background: #94a3b8;
   cursor: not-allowed;
 }
@@ -642,6 +651,19 @@ pre,
 .hint,
 .form-message {
   color: var(--muted);
+}
+
+.danger-panel {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.delete-confirm-field {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  color: #7f1d1d;
+  font-weight: 800;
 }
 
 .case-list {
