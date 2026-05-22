@@ -21,13 +21,24 @@ const submissionId = ref(null)
 const judgerStatus = ref('')
 const isSubmitting = ref(false)
 const historyList = ref([]) // 新增：用于存放历史提交记录的数组
-const isCreatingProblem = ref(false)
+const editingProblemId = ref(null)
 const adminMessage = ref('')
+const uploadMessage = ref('')
+const isSavingProblem = ref(false)
+const isUploadingData = ref(false)
+const selectedUploadProblemId = ref('')
+const selectedZipFile = ref(null)
+const testcaseList = ref([])
 const currentPage = ref('judge')
-const newProblem = ref({
+const adminForm = ref({
   title: '',
   difficulty: 'Easy',
-  description: ''
+  description: '',
+  input_description: '',
+  output_description: '',
+  time_limit_ms: 1000,
+  memory_limit_mb: 256,
+  is_public: true
 })
 
 const editorOptions = shallowRef({
@@ -61,6 +72,7 @@ onMounted(async () => {
   syncPageFromHash()
   window.addEventListener('hashchange', syncPageFromHash)
   await fetchProblems()
+  await fetchTestcases()
   await fetchHistory()
 })
 
@@ -72,8 +84,11 @@ const fetchProblems = async () => {
   try {
     const response = await fetch('http://127.0.0.1:8000/api/problems')
     problemList.value = await response.json()
-    if (problemList.value.length > 0) {
+    if (!selectedProblemId.value && problemList.value.length > 0) {
       selectedProblemId.value = problemList.value[0].id
+    }
+    if (!selectedUploadProblemId.value && problemList.value.length > 0) {
+      selectedUploadProblemId.value = problemList.value[0].id
     }
   } catch (error) { console.error("题库加载失败:", error) }
 }
@@ -88,40 +103,137 @@ const fetchHistory = async () => {
   } catch (error) { console.error("历史记录加载失败:", error) }
 }
 
-// --- 管理端：创建题目 ---
-const handleCreateProblem = async () => {
-  if (!newProblem.value.title.trim()) {
+const resetAdminForm = () => {
+  editingProblemId.value = null
+  adminMessage.value = ''
+  adminForm.value = {
+    title: '',
+    difficulty: 'Easy',
+    description: '',
+    input_description: '',
+    output_description: '',
+    time_limit_ms: 1000,
+    memory_limit_mb: 256,
+    is_public: true
+  }
+}
+
+const editProblem = async (problem) => {
+  editingProblemId.value = problem.id
+  adminMessage.value = ''
+  selectedUploadProblemId.value = problem.id
+  adminForm.value = {
+    title: problem.title || '',
+    difficulty: problem.difficulty || 'Easy',
+    description: problem.description || '',
+    input_description: problem.input_description || '',
+    output_description: problem.output_description || '',
+    time_limit_ms: problem.time_limit_ms || 1000,
+    memory_limit_mb: problem.memory_limit_mb || 256,
+    is_public: problem.is_public !== false
+  }
+  await fetchTestcases(problem.id)
+}
+
+const saveProblem = async () => {
+  if (!adminForm.value.title.trim()) {
     adminMessage.value = '请填写题目标题'
     return
   }
 
-  isCreatingProblem.value = true
-  adminMessage.value = '正在创建题目...'
-
-  const params = new URLSearchParams({
-    title: newProblem.value.title.trim(),
-    difficulty: newProblem.value.difficulty,
-    description: newProblem.value.description.trim() || '这是默认题面描述'
-  })
+  isSavingProblem.value = true
+  adminMessage.value = editingProblemId.value ? '正在保存题目...' : '正在创建题目...'
+  const payload = {
+    ...adminForm.value,
+    title: adminForm.value.title.trim(),
+    time_limit_ms: Number(adminForm.value.time_limit_ms) || 1000,
+    memory_limit_mb: Number(adminForm.value.memory_limit_mb) || 256
+  }
 
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/admin/problems?${params.toString()}`, {
-      method: 'POST'
+    const url = editingProblemId.value
+      ? `http://127.0.0.1:8000/api/admin/problems/${editingProblemId.value}`
+      : 'http://127.0.0.1:8000/api/admin/problems'
+    const response = await fetch(url, {
+      method: editingProblemId.value ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     })
     const data = await response.json()
 
     if (response.ok) {
-      adminMessage.value = `题目 #${data.id} 创建成功`
-      newProblem.value = { title: '', difficulty: 'Easy', description: '' }
+      const problemId = editingProblemId.value || data.id
+      adminMessage.value = editingProblemId.value ? `题目 #${problemId} 已保存` : `题目 #${problemId} 创建成功`
       await fetchProblems()
-      selectedProblemId.value = data.id
+      selectedProblemId.value = problemId
+      selectedUploadProblemId.value = problemId
+      if (!editingProblemId.value) {
+        editingProblemId.value = problemId
+      }
+      await fetchTestcases(problemId)
     } else {
-      adminMessage.value = '创建失败: ' + (data.detail || '未知错误')
+      adminMessage.value = '保存失败: ' + (data.detail || '未知错误')
     }
   } catch (error) {
-    adminMessage.value = '网络异常，无法创建题目'
+    adminMessage.value = '网络异常，无法保存题目'
   } finally {
-    isCreatingProblem.value = false
+    isSavingProblem.value = false
+  }
+}
+
+const handleZipFileChange = (event) => {
+  selectedZipFile.value = event.target.files?.[0] || null
+}
+
+const fetchTestcases = async (problemId = selectedUploadProblemId.value) => {
+  testcaseList.value = []
+  if (!problemId) return
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/admin/problems/${problemId}/testcases`)
+    const data = await response.json()
+    if (response.ok) {
+      testcaseList.value = data
+    } else {
+      uploadMessage.value = data.detail || '测试点加载失败'
+    }
+  } catch (error) {
+    uploadMessage.value = '网络异常，无法加载测试点'
+  }
+}
+
+const uploadTestcases = async () => {
+  if (!selectedUploadProblemId.value) {
+    uploadMessage.value = '请先选择题目'
+    return
+  }
+  if (!selectedZipFile.value) {
+    uploadMessage.value = '请选择 zip 文件'
+    return
+  }
+
+  isUploadingData.value = true
+  uploadMessage.value = '正在上传测试数据...'
+  const formData = new FormData()
+  formData.append('file', selectedZipFile.value)
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/admin/problems/${selectedUploadProblemId.value}/testcases/upload`, {
+      method: 'POST',
+      body: formData
+    })
+    const data = await response.json()
+    if (response.ok) {
+      uploadMessage.value = `上传成功，共 ${data.case_count} 个测试点`
+      selectedZipFile.value = null
+      await fetchProblems()
+      await fetchTestcases(selectedUploadProblemId.value)
+    } else {
+      uploadMessage.value = '上传失败: ' + (data.detail || '未知错误')
+    }
+  } catch (error) {
+    uploadMessage.value = '网络异常，无法上传测试数据'
+  } finally {
+    isUploadingData.value = false
   }
 }
 
@@ -240,7 +352,7 @@ const formatTime = (timeStr) => {
         <select id="problem-select" v-model="selectedProblemId" class="control problem-select">
           <option value="" disabled>请选择题目</option>
           <option v-for="prob in problemList" :key="prob.id" :value="prob.id">
-            #{{ prob.id }} - {{ prob.title }}
+            #{{ prob.id }} - {{ prob.title }} ({{ prob.testcase_count || 0 }})
           </option>
         </select>
 
@@ -251,14 +363,22 @@ const formatTime = (timeStr) => {
           </div>
           <p>{{ currentProblem.description || "暂无题目描述。" }}</p>
 
-          <div v-if="currentProblem.id === 1" class="format-box">
+          <div class="format-box">
             <div>
               <strong>输入格式</strong>
-              <p>一行两个整数。</p>
+              <p>{{ currentProblem.input_description || '暂无输入格式。' }}</p>
             </div>
             <div>
               <strong>输出格式</strong>
-              <p>一行一个整数。</p>
+              <p>{{ currentProblem.output_description || '暂无输出格式。' }}</p>
+            </div>
+            <div>
+              <strong>限制</strong>
+              <p>{{ currentProblem.time_limit_ms }} ms / {{ currentProblem.memory_limit_mb }} MB</p>
+            </div>
+            <div>
+              <strong>测试点</strong>
+              <p>{{ currentProblem.testcase_count || 0 }} 个</p>
             </div>
           </div>
         </div>
@@ -312,14 +432,14 @@ const formatTime = (timeStr) => {
         <div class="section-head">
           <div>
             <p class="eyebrow">Admin</p>
-            <h2>新增题目</h2>
+            <h2>{{ editingProblemId ? `编辑题目 #${editingProblemId}` : '新增题目' }}</h2>
           </div>
         </div>
-        <form class="admin-form" @submit.prevent="handleCreateProblem">
+        <form class="admin-form" @submit.prevent="saveProblem">
           <label class="form-field">
             <span>标题</span>
             <input
-              v-model="newProblem.title"
+              v-model="adminForm.title"
               class="control"
               type="text"
               placeholder="例如：A+B Problem"
@@ -327,7 +447,7 @@ const formatTime = (timeStr) => {
           </label>
           <label class="form-field">
             <span>难度</span>
-            <select v-model="newProblem.difficulty" class="control">
+            <select v-model="adminForm.difficulty" class="control">
               <option value="Easy">Easy</option>
               <option value="Medium">Medium</option>
               <option value="Hard">Hard</option>
@@ -336,16 +456,85 @@ const formatTime = (timeStr) => {
           <label class="form-field span-all">
             <span>描述</span>
             <textarea
-              v-model="newProblem.description"
+              v-model="adminForm.description"
               class="control admin-textarea"
               placeholder="输入题面描述"
             ></textarea>
           </label>
-          <button class="admin-btn" type="submit" :disabled="isCreatingProblem">
-            {{ isCreatingProblem ? '创建中...' : '新增题目' }}
-          </button>
+          <label class="form-field span-all">
+            <span>输入格式</span>
+            <textarea
+              v-model="adminForm.input_description"
+              class="control small-textarea"
+              placeholder="例如：一行两个整数 a,b。"
+            ></textarea>
+          </label>
+          <label class="form-field span-all">
+            <span>输出格式</span>
+            <textarea
+              v-model="adminForm.output_description"
+              class="control small-textarea"
+              placeholder="例如：一行一个整数，表示 a+b。"
+            ></textarea>
+          </label>
+          <label class="form-field">
+            <span>时间限制 ms</span>
+            <input v-model.number="adminForm.time_limit_ms" class="control" type="number" min="100" />
+          </label>
+          <label class="form-field">
+            <span>内存限制 MB</span>
+            <input v-model.number="adminForm.memory_limit_mb" class="control" type="number" min="16" />
+          </label>
+          <label class="check-field span-all">
+            <input v-model="adminForm.is_public" type="checkbox" />
+            <span>公开题目</span>
+          </label>
+          <div class="admin-actions span-all">
+            <button class="admin-btn" type="submit" :disabled="isSavingProblem">
+              {{ isSavingProblem ? '保存中...' : (editingProblemId ? '保存修改' : '新增题目') }}
+            </button>
+            <button class="ghost-btn" type="button" @click="resetAdminForm">清空表单</button>
+          </div>
         </form>
         <p v-if="adminMessage" class="admin-message">{{ adminMessage }}</p>
+      </section>
+
+      <section class="panel upload-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Test Data</p>
+            <h2>上传测试数据</h2>
+          </div>
+        </div>
+        <div class="upload-form">
+          <label class="form-field">
+            <span>选择题目</span>
+            <select v-model="selectedUploadProblemId" class="control" @change="fetchTestcases(selectedUploadProblemId)">
+              <option value="" disabled>请选择题目</option>
+              <option v-for="prob in problemList" :key="prob.id" :value="prob.id">
+                #{{ prob.id }} - {{ prob.title }} ({{ prob.testcase_count || 0 }} 个测试点)
+              </option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span>测试数据 zip</span>
+            <input class="control file-control" type="file" accept=".zip" @change="handleZipFileChange" />
+          </label>
+          <button class="admin-btn" type="button" :disabled="isUploadingData" @click="uploadTestcases">
+            {{ isUploadingData ? '上传中...' : '上传测试数据 zip' }}
+          </button>
+          <p v-if="uploadMessage" class="admin-message">{{ uploadMessage }}</p>
+        </div>
+
+        <div class="case-list">
+          <h3>当前测试点</h3>
+          <div v-if="testcaseList.length === 0" class="empty-state">暂无测试点。</div>
+          <div v-for="caseItem in testcaseList" :key="caseItem.id" class="case-item">
+            <span>#{{ caseItem.sort_order }}</span>
+            <code>{{ caseItem.input_path }}</code>
+            <code>{{ caseItem.output_path }}</code>
+          </div>
+        </div>
       </section>
 
       <section class="panel problem-list-panel">
@@ -361,8 +550,12 @@ const formatTime = (timeStr) => {
             <div>
               <h3>#{{ prob.id }} {{ prob.title }}</h3>
               <p>{{ prob.description || '暂无题目描述。' }}</p>
+              <small>{{ prob.testcase_count || 0 }} 个测试点 · {{ prob.time_limit_ms }} ms · {{ prob.memory_limit_mb }} MB</small>
             </div>
-            <span class="difficulty">{{ prob.difficulty }}</span>
+            <div class="problem-item-actions">
+              <span class="difficulty">{{ prob.difficulty }}</span>
+              <button class="ghost-btn" type="button" @click="editProblem(prob)">编辑</button>
+            </div>
           </article>
           <div v-if="problemList.length === 0" class="empty-state">暂无题目。</div>
         </div>
@@ -743,16 +936,103 @@ const formatTime = (timeStr) => {
   resize: vertical;
 }
 
+.small-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.check-field {
+  align-items: center;
+  color: #334155;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.check-field input {
+  height: 16px;
+  width: 16px;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .admin-btn {
   background: #0f766e;
-  grid-column: 1 / -1;
   justify-self: start;
+}
+
+.ghost-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 750;
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.ghost-btn:hover {
+  background: #f8fafc;
 }
 
 .admin-message {
   color: #334155;
   font-size: 14px;
   margin: 12px 0 0;
+}
+
+.upload-form {
+  display: grid;
+  gap: 14px;
+}
+
+.file-control {
+  padding: 8px 10px;
+}
+
+.case-list {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.case-list h3 {
+  color: #111827;
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.case-item {
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 48px 1fr 1fr;
+  margin-bottom: 8px;
+  padding: 10px;
+}
+
+.case-item span {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.case-item code {
+  background: #f8fafc;
+  border-radius: 6px;
+  color: #475569;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .problem-list {
@@ -786,6 +1066,21 @@ const formatTime = (timeStr) => {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.problem-item small {
+  color: #64748b;
+  display: block;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.problem-item-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 10px;
 }
 
 .table-wrap {
@@ -902,6 +1197,20 @@ const formatTime = (timeStr) => {
 
   .admin-btn {
     justify-self: stretch;
+  }
+
+  .case-item,
+  .problem-item {
+    grid-template-columns: 1fr;
+  }
+
+  .problem-item {
+    flex-direction: column;
+  }
+
+  .problem-item-actions {
+    align-items: stretch;
+    width: 100%;
   }
 }
 </style>

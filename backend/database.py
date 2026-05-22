@@ -1,9 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pathlib import Path
 
-# 1. 定义数据库文件的存储路径（在当前目录下生成一个 oj.db 文件）
-SQLALCHEMY_DATABASE_URL = "sqlite:///./oj.db"
+# 1. 定义数据库文件的存储路径（固定在项目根目录 oj.db，避免不同启动目录生成不同数据库）
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATABASE_PATH = PROJECT_ROOT / "oj.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
 # 2. 创建数据库引擎
 # connect_args={"check_same_thread": False} 是 SQLite 专属配置
