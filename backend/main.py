@@ -12,7 +12,7 @@ import zipfile
 from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, update
 from sqlalchemy.orm import Session
 
 try:
@@ -48,9 +48,9 @@ def ensure_sqlite_columns():
         for name, ddl in columns.items():
             if name not in existing:
                 conn.execute(text(f"ALTER TABLE problems ADD COLUMN {name} {ddl}"))
-        now = datetime.utcnow().isoformat(sep=" ", timespec="seconds")
-        conn.execute(text("UPDATE problems SET created_at = :now WHERE created_at IS NULL"), {"now": now})
-        conn.execute(text("UPDATE problems SET updated_at = :now WHERE updated_at IS NULL"), {"now": now})
+        now = datetime.utcnow()
+        conn.execute(update(Problem).where(Problem.created_at == None).values(created_at=now))
+        conn.execute(update(Problem).where(Problem.updated_at == None).values(updated_at=now))
 
 
 Base.metadata.create_all(bind=engine)
@@ -70,12 +70,12 @@ app.add_middleware(
 
 class ProblemPayload(BaseModel):
     title: str = Field(min_length=1)
-    difficulty: str = "Easy"
+    difficulty: str | int = "Easy"
     description: str = ""
     input_description: str | None = None
     output_description: str | None = None
-    time_limit_ms: int = Field(default=1000, ge=100, le=60000)
-    memory_limit_mb: int = Field(default=256, ge=16, le=4096)
+    time_limit_ms: int | float = Field(default=1000, ge=100, le=60000)
+    memory_limit_mb: int | float = Field(default=256, ge=16, le=4096)
     is_public: bool = True
 
 

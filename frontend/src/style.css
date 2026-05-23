@@ -750,3 +750,167 @@ pre,
     align-items: flex-start;
   }
 }
+
+/* ==========================================
+   Header Actions & Theme Switcher
+   ========================================== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--panel-soft);
+  border-color: var(--primary);
+  transform: rotate(15deg) scale(1.05);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* ==========================================
+   Dark Theme Overrides
+   ========================================== */
+:root.dark {
+  --bg: #0b0f19;        /* Deep premium slate dark background */
+  --panel: #111827;     /* Slate dark panels */
+  --panel-soft: #1f2937;
+  --border: #374151;    /* Slate borders */
+  --text: #f3f4f6;      /* Off-white primary text */
+  --muted: #9ca3af;     /* Light gray muted text */
+  --primary: #3b82f6;   /* Rich bright blue */
+  --primary-dark: #60a5fa;
+}
+
+/* Specific dark mode selector overrides */
+:root.dark body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+:root.dark .app-header {
+  background: rgba(17, 24, 39, 0.95);
+  border-bottom: 1px solid var(--border);
+}
+
+:root.dark .main-nav button {
+  color: #9ca3af;
+}
+
+:root.dark .main-nav button.active,
+:root.dark .main-nav button:hover,
+:root.dark .user-chip {
+  background: #1e293b;
+  color: var(--primary-dark);
+}
+
+:root.dark .page-heading h1,
+:root.dark .hero-section h1,
+:root.dark .statement h1,
+:root.dark .placeholder-page h1,
+:root.dark .profile-page h1 {
+  color: #f3f4f6;
+}
+
+:root.dark .stat-card strong {
+  color: #f3f4f6;
+}
+
+:root.dark .tabbar {
+  background: #1f2937;
+}
+
+:root.dark .tabbar button {
+  color: #9ca3af;
+}
+
+:root.dark .tabbar button.active {
+  background: #111827;
+  color: var(--primary-dark);
+}
+
+:root.dark .data-table th {
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+:root.dark .data-table td {
+  border-bottom: 1px solid #1f2937;
+  color: #e5e7eb;
+}
+
+:root.dark .data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+:root.dark .control {
+  background: #111827;
+  border-color: #374151;
+  color: #f3f4f6;
+}
+
+:root.dark .control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+:root.dark .ghost-btn {
+  background: #111827;
+  border-color: #374151;
+  color: #d1d5db;
+}
+
+:root.dark .ghost-btn:hover {
+  background: #1f2937;
+  color: #ffffff;
+}
+
+:root.dark .case-pill,
+:root.dark .problem-status-list span {
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+:root.dark .badge,
+:root.dark .tag {
+  background: #1e293b;
+  color: var(--primary-dark);
+}
+
+:root.dark .meta-grid span,
+:root.dark .detail-grid span {
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+:root.dark .markdown-viewer p {
+  color: #d1d5db;
+}
+
+:root.dark .progress-bar {
+  background: #1f2937;
+}
+
+:root.dark .empty-state,
+:root.dark .loading-state {
+  border-color: var(--border);
+  color: var(--muted);
+}

@@ -1,6 +1,7 @@
 <script setup>
 import { currentRoute, navigateTo } from '../../router'
 import { authStore } from '../../stores/authStore'
+import { themeStore, toggleTheme } from '../../stores/themeStore'
 
 const navItems = [
   { label: '首页', path: '/' },
@@ -34,6 +35,12 @@ function isActive(path) {
         {{ item.label }}
       </button>
     </nav>
-    <button class="user-chip" @click="navigateTo('/me')">{{ authStore.currentUser.username }}</button>
+    <div class="header-actions">
+      <button class="theme-toggle-btn" @click="toggleTheme" aria-label="Toggle Theme">
+        <span v-if="themeStore.currentTheme === 'dark'" class="icon">☀️</span>
+        <span v-else class="icon">🌙</span>
+      </button>
+      <button class="user-chip" @click="navigateTo('/me')">{{ authStore.currentUser.username }}</button>
+    </div>
   </header>
 </template>
