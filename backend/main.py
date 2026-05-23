@@ -70,12 +70,12 @@ app.add_middleware(
 
 class ProblemPayload(BaseModel):
     title: str = Field(min_length=1)
-    difficulty: str = "Easy"
+    difficulty: str | int = "Easy"
     description: str = ""
     input_description: str | None = None
     output_description: str | None = None
-    time_limit_ms: int = Field(default=1000, ge=100, le=60000)
-    memory_limit_mb: int = Field(default=256, ge=16, le=4096)
+    time_limit_ms: int | float = Field(default=1000, ge=100, le=60000)
+    memory_limit_mb: int | float = Field(default=256, ge=16, le=4096)
     is_public: bool = True
 
 
