@@ -13,6 +13,11 @@
 
 ```sh
 cd backend
+uv pip install -r requirements.txt
+```
+
+```sh
+cd backend
 uvicorn main:app --reload
 ```
 
@@ -28,6 +33,11 @@ npm run dev
 A lightweight and modern Online Judge system built with FastAPI, Vue 3, and a custom C++ evaluation sandbox.
 
 #### build
+
+```sh
+cd backend
+uv pip install -r requirements.txt
+```
 
 ```sh
 cd backend
