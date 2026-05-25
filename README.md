@@ -22,6 +22,7 @@ uvicorn main:app --reload
 ```
 
 ```sh
+cd frontend
 npm run dev
 ```
 
@@ -45,5 +46,6 @@ uvicorn main:app --reload
 ```
 
 ```sh
+cd frontend
 npm run dev
 ```
