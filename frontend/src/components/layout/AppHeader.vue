@@ -8,7 +8,7 @@ const navItems = [
   { label: '题库', path: '/problems' },
   { label: '训练', path: '/trainings' },
   { label: '比赛', path: '/contests' },
-  { label: '题解', path: '/solutions' },
+  { label: '发布题解', path: '/solutions/publish' },
   { label: '排行', path: '/rankings' },
   { label: '团队', path: '/teams' },
   { label: '管理', path: '/admin' }

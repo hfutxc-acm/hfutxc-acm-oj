@@ -7,6 +7,7 @@ const routes = [
   { name: 'problem-detail', path: /^\/problems\/([^/]+)$/, title: '题目详情', keys: ['pid'] },
   { name: 'problem-solutions', path: /^\/problems\/([^/]+)\/solutions$/, title: '题解', keys: ['pid'] },
   { name: 'problem-discussions', path: /^\/problems\/([^/]+)\/discussions$/, title: '讨论', keys: ['pid'] },
+  { name: 'solution-publish', path: /^\/solutions\/publish$/, title: '发布题解' },
   { name: 'trainings', path: /^\/trainings$/, title: '训练' },
   { name: 'training-detail', path: /^\/trainings\/([^/]+)$/, title: '训练详情', keys: ['tid'] },
   { name: 'contests', path: /^\/contests$/, title: '比赛' },
