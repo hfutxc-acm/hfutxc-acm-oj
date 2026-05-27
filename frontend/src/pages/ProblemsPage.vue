@@ -14,13 +14,15 @@ const filters = ref({
   difficulty: routeState.query.difficulty || '全部',
   tag: routeState.query.tag || '全部',
   source: routeState.query.source || '全部',
-  status: routeState.query.status || '全部'
+  status: routeState.query.status || '全部',
+  searchContent: routeState.query.searchContent === 'true'
 })
 
 const filtered = computed(() => {
   const keyword = filters.value.keyword.trim().toLowerCase()
   return problems.value.filter(problem => {
-    const text = `${problem.id} ${problem.title} ${(problem.tags || []).join(' ')}`.toLowerCase()
+    // If searchContent is true, you could also search problem.content, but for now we search title/tags
+    const text = `${problem.id} ${problem.title} ${(problem.tags || []).join(' ')} ${filters.value.searchContent && problem.content ? problem.content : ''}`.toLowerCase()
     const okKeyword = !keyword || text.includes(keyword)
     const okDifficulty = filters.value.difficulty === '全部' || problem.difficulty === filters.value.difficulty
     const okTag = filters.value.tag === '全部' || problem.tags?.includes(filters.value.tag)
@@ -44,6 +46,7 @@ function updateFilters(next) {
   if (next.tag !== '全部') params.set('tag', next.tag)
   if (next.source !== '全部') params.set('source', next.source)
   if (next.status !== '全部') params.set('status', next.status)
+  if (next.searchContent) params.set('searchContent', 'true')
   navigateTo(`/problems${params.toString() ? `?${params}` : ''}`)
 }
 
@@ -59,7 +62,7 @@ onMounted(async () => {
       <h1>题库</h1>
       <p>按难度、标签和状态筛选校内训练题目。</p>
     </div>
-    <ProblemFilter :filters="filters" @update="updateFilters" />
+    <ProblemFilter :filters="filters" :total="filtered.length" @update="updateFilters" />
     <ProblemTable v-if="filtered.length" :problems="filtered" />
     <EmptyState v-else title="没有匹配的题目" description="换一个关键词或筛选条件试试。" />
     <Pagination :total="filtered.length" />
