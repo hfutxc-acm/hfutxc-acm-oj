@@ -10,8 +10,10 @@ import { navigateTo, routeState } from '../router'
 const problems = ref([])
 const filters = ref({
   keyword: routeState.query.keyword || '',
+  stage: routeState.query.stage || '全部',
   difficulty: routeState.query.difficulty || '全部',
   tag: routeState.query.tag || '全部',
+  source: routeState.query.source || '全部',
   status: routeState.query.status || '全部'
 })
 
@@ -22,9 +24,14 @@ const filtered = computed(() => {
     const okKeyword = !keyword || text.includes(keyword)
     const okDifficulty = filters.value.difficulty === '全部' || problem.difficulty === filters.value.difficulty
     const okTag = filters.value.tag === '全部' || problem.tags?.includes(filters.value.tag)
-    const statusMap = { 未尝试: 'NONE', 已通过: 'AC', 尝试过: 'TRIED' }
+    const okSource = filters.value.source === '全部' || problem.source === filters.value.source
+    
+    // Support stage filtering
+    const okStage = filters.value.stage === '全部' || problem.stage === filters.value.stage || !problem.stage
+
+    const statusMap = { '未做': 'NONE', '已 AC': 'AC', '尝试过': 'TRIED', '收藏': 'FAVORITE' }
     const okStatus = filters.value.status === '全部' || problem.status === statusMap[filters.value.status]
-    return okKeyword && okDifficulty && okTag && okStatus
+    return okKeyword && okDifficulty && okTag && okSource && okStage && okStatus
   })
 })
 
@@ -32,8 +39,10 @@ function updateFilters(next) {
   filters.value = next
   const params = new URLSearchParams()
   if (next.keyword) params.set('keyword', next.keyword)
+  if (next.stage !== '全部') params.set('stage', next.stage)
   if (next.difficulty !== '全部') params.set('difficulty', next.difficulty)
   if (next.tag !== '全部') params.set('tag', next.tag)
+  if (next.source !== '全部') params.set('source', next.source)
   if (next.status !== '全部') params.set('status', next.status)
   navigateTo(`/problems${params.toString() ? `?${params}` : ''}`)
 }

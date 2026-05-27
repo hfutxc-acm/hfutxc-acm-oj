@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, reactive, computed, shallowRef } from 'vue'
+import { ref, watch, reactive, computed, shallowRef, nextTick } from 'vue'
 import { submitCode } from '../../api/problems'
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 import { templates, registerVscodeDarkTheme, registerCustomCompletions } from '../../utils/monacoCustomizer'
@@ -123,22 +123,31 @@ watch(() => settings.tabSize, () => {
 })
 
 // Ensure settings are also applied when language or model swaps
-watch(language, () => {
+watch(language, async () => {
+  await nextTick()
+  // 给 Monaco 一点时间完成 model 切换
   setTimeout(() => {
     updateModelOptions(editorRef.value)
-  }, 50)
+  }, 0)
 })
 
 async function handleSubmit() {
   if (!props.problemId) return
+  
+  const trimmedCode = code.value?.trim()
+  if (!trimmedCode) {
+    message.value = '代码不能为空'
+    return
+  }
+
   saving.value = true
   message.value = '提交中...'
   try {
     const result = await submitCode({
-      userId: 1,
+      userId: 1, // TODO: 从用户状态存储中获取实际 ID
       problemId: props.problemId,
       language: language.value,
-      code: code.value
+      code: trimmedCode
     })
     message.value = `提交成功，运行 ID #${result.submission_id}`
     emit('submitted', result)

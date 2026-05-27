@@ -8,9 +8,10 @@ const navItems = [
   { label: '题库', path: '/problems' },
   { label: '训练', path: '/trainings' },
   { label: '比赛', path: '/contests' },
-  { label: '提交', path: '/submissions' },
-  { label: '排名', path: '/rankings' },
-  { label: '后台', path: '/admin' }
+  { label: '题解', path: '/solutions' },
+  { label: '排行', path: '/rankings' },
+  { label: '团队', path: '/teams' },
+  { label: '管理', path: '/admin' }
 ]
 
 function isActive(path) {

@@ -15,15 +15,7 @@ defineProps({
         <p class="eyebrow">Problem #{{ problem.id }}</p>
         <h1>{{ problem.title }}</h1>
       </div>
-      <DifficultyBadge :difficulty="problem.difficulty" />
     </header>
-    <div class="meta-grid">
-      <span>时间限制 {{ problem.time_limit_ms || 1000 }} ms</span>
-      <span>内存限制 {{ problem.memory_limit_mb || 256 }} MB</span>
-      <span>来源 {{ problem.source }}</span>
-      <span>通过率 {{ problem.passRate || 0 }}%</span>
-    </div>
-    <div class="tag-row"><ProblemTag v-for="tag in problem.tags" :key="tag" :tag="tag" /></div>
 
     <section class="statement-block">
       <h2>题目描述</h2>
@@ -46,6 +38,11 @@ defineProps({
         <h2>样例输出</h2>
         <pre>{{ problem.sample_output || '暂无样例' }}</pre>
       </div>
+    </section>
+    
+    <section class="statement-block source-tags" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+      <p style="color: var(--text-2); font-size: 0.9rem; margin-bottom: 0.5rem;">来源：{{ problem.source }}</p>
+      <div class="tag-row"><ProblemTag v-for="tag in problem.tags" :key="tag" :tag="tag" /></div>
     </section>
   </article>
 </template>

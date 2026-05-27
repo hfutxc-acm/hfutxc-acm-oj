@@ -23,6 +23,7 @@ function statusLabel(status) {
           <th>题号</th>
           <th>标题</th>
           <th>难度</th>
+          <th>推荐阶段</th>
           <th>标签</th>
           <th>通过数</th>
           <th>提交数</th>
@@ -38,6 +39,7 @@ function statusLabel(status) {
             <button class="link-button" @click="navigateTo(`/problems/${problem.id}`)">{{ problem.title }}</button>
           </td>
           <td><DifficultyBadge :difficulty="problem.difficulty" /></td>
+          <td>{{ problem.stage || '-' }}</td>
           <td class="tag-cell"><ProblemTag v-for="tag in problem.tags" :key="tag" :tag="tag" /></td>
           <td>{{ problem.accepted }}</td>
           <td>{{ problem.submissions }}</td>
