@@ -4,6 +4,7 @@ import App from './App.vue'
 import { config } from 'md-editor-v3'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { initAuth } from './stores/authStore.js'
 
 // Configure md-editor-v3 to use the local katex instance instead of CDN
 config({
@@ -14,4 +15,6 @@ config({
   }
 })
 
-createApp(App).mount('#app')
+initAuth().then(() => {
+  createApp(App).mount('#app')
+})

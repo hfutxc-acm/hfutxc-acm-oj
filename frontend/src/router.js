@@ -20,6 +20,8 @@ const routes = [
   { name: 'rankings', path: /^\/rankings$/, title: '排名' },
   { name: 'freshman-ranking', path: /^\/rankings\/freshman$/, title: '新生排名' },
   { name: 'discussions', path: /^\/discussions$/, title: '交流' },
+  { name: 'teams', path: /^\/teams$/, title: '组织大厅' },
+  { name: 'auth', path: /^\/auth$/, title: '登录/注册' },
   { name: 'user-profile', path: /^\/users\/([^/]+)$/, title: '用户主页', keys: ['uid'] },
   { name: 'me', path: /^\/me$/, title: '个人中心' },
   { name: 'about', path: /^\/about$/, title: '关于我们' },

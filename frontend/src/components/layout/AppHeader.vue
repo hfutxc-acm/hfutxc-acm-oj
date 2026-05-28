@@ -41,7 +41,30 @@ function isActive(path) {
         <span v-if="themeStore.currentTheme === 'dark'" class="icon">☀️</span>
         <span v-else class="icon">🌙</span>
       </button>
-      <button class="user-chip" @click="navigateTo('/me')">{{ authStore.currentUser.username }}</button>
+      <div v-if="authStore.isAuthenticated" class="user-chip-group">
+        <button class="user-chip" @click="navigateTo(`/users/${authStore.currentUser.id}`)">{{ authStore.currentUser.username }}</button>
+        <button class="btn btn-sm btn-outline" @click="logout">退出</button>
+      </div>
+      <button v-else class="btn btn-sm btn-primary" @click="navigateTo('/auth')">登录 / 注册</button>
     </div>
   </header>
 </template>
+
+<script>
+import { logout } from '../../stores/authStore'
+export default {
+  methods: { logout }
+}
+</script>
+
+<style scoped>
+.user-chip-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+</style>

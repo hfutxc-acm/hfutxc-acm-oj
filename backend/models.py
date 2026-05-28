@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -7,6 +7,25 @@ try:
 except ImportError:
     from database import Base
 
+user_groups_table = Table(
+    "user_groups",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id"), primary_key=True),
+    Column("joined_at", DateTime, default=datetime.utcnow)
+)
+
+class Group(Base):
+    """用户组/战队/班级"""
+    __tablename__ = "groups"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, default="")
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True) # 谁创建的这个组
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    users = relationship("User", secondary=user_groups_table, back_populates="groups")
 
 class User(Base):
     """用户表"""
@@ -14,10 +33,19 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String, unique=True, index=True, nullable=False)
-    # 注意：实际工程中绝不能存明文密码，这里先留出 hashed 密码字段，后续引入加密
     hashed_password = Column(String, nullable=False)
+    
+    # 角色: 'admin' (系统管理员/教师), 'user' (普通学生)
+    role = Column(String, default="user")
+    
+    # 头像
+    avatar_url = Column(String, default="")
+    
+    # 所加入的所有组
+    groups = relationship("Group", secondary=user_groups_table, back_populates="users")
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    # 建立关联：一个用户可以有多次代码提交
     submissions = relationship("Submission", back_populates="user")
 
 

@@ -20,3 +20,5 @@ uvicorn==0.47.0
 zope-interface==8.4
 requests
 python-dotenv
+passlib[bcrypt]==1.7.4
+PyJWT==2.8.0

@@ -2,18 +2,39 @@
 from pathlib import Path
 # from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
-from models import User, Problem, TestCase
+from models import User, Problem, TestCase, Group
 
 # Create tables just in case
 Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 
+# Create Groups
+admin_group = db.query(Group).filter(Group.id == 1).first()
+if not admin_group:
+    admin_group = Group(id=1, name="System Admins", description="Superuser group", owner_id=1)
+    db.add(admin_group)
+
+class_group = db.query(Group).filter(Group.id == 2).first()
+if not class_group:
+    class_group = Group(id=2, name="Class 2301", description="Default student class")
+    db.add(class_group)
+db.commit()
+
 # Create user
 user = db.query(User).filter(User.id == 1).first()
 if not user:
-    user = User(id=1, username="test_user", hashed_password="fake")
+    user = User(id=1, username="test_user", hashed_password="fake", role="admin")
     db.add(user)
+    db.commit()
+    db.refresh(user)
+
+if admin_group not in user.groups:
+    user.groups.append(admin_group)
+if class_group not in user.groups:
+    user.groups.append(class_group)
+user.role = "admin"
+db.commit()
 
 # Create problem
 problem = db.query(Problem).filter(Problem.id == 1001).first()
@@ -36,4 +57,4 @@ if not tc:
     db.add(tc)
 
 db.commit()
-print("Database seeded with mock User (id=1) and Problem (id=1001).")
+print("Database seeded with Groups, Admin User (id=1) and Problem (id=1001).")

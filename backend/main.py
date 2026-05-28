@@ -16,17 +16,39 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import uuid
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect, text, update
 from sqlalchemy.orm import Session
 
 try:
     from .database import Base, PROJECT_ROOT, SessionLocal, engine, get_db
-    from .models import Problem, Submission, SubmissionResult, TestCase, User
+    from .models import Problem, Submission, SubmissionResult, TestCase, User, Group
 except ImportError:
     from database import Base, PROJECT_ROOT, SessionLocal, engine, get_db
-    from models import Problem, Submission, SubmissionResult, TestCase, User
+    from models import Problem, Submission, SubmissionResult, TestCase, User, Group
+
+from auth import get_password_hash, verify_password, create_access_token, decode_access_token
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="无效的或已过期的 Token")
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="未找到用户")
+    return user
+
+def check_admin_role(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return current_user
 
 
 DATA_ROOT = PROJECT_ROOT / "data" / "problems"
@@ -78,7 +100,13 @@ Base.metadata.create_all(bind=engine)
 ensure_sqlite_columns()
 DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
+UPLOAD_DIR = PROJECT_ROOT / "uploads"
+AVATAR_DIR = UPLOAD_DIR / "avatars"
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+
 app = FastAPI(title="HFUTXC ACM OJ API", version="1.3.0")
+
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -240,6 +268,43 @@ def replace_problem_data(problem_id: int, upload_path: Path, orders: list[int], 
 
 
 def judge0_submit(code: str, language: str, stdin_text: str, timeout_s: float):
+    import subprocess
+    import tempfile
+    
+    if JUDGE0_API_URL == "local":
+        if language.lower() in ["python", "py", "python3"]:
+            try:
+                res = subprocess.run(["python3", "-c", code], input=stdin_text, text=True, capture_output=True, timeout=timeout_s)
+                if res.returncode == 0:
+                    return {"status": "OK", "stdout": res.stdout, "message": "", "time_ms": 10}
+                else:
+                    return {"status": "RE", "stdout": res.stdout, "message": res.stderr, "time_ms": 10}
+            except subprocess.TimeoutExpired:
+                return {"status": "TLE", "stdout": "", "message": "运行超时", "time_ms": int(timeout_s * 1000)}
+            except Exception as e:
+                return {"status": "SE", "stdout": "", "message": str(e), "time_ms": 0}
+        elif language.lower() in ["cpp", "c++", "c"]:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                src = Path(tmpdir) / "main.cpp"
+                exe = Path(tmpdir) / "a.out"
+                src.write_text(code, encoding="utf-8")
+                cpp_compiler = os.environ.get("CPP_COMPILER", "g++")
+                comp = subprocess.run([cpp_compiler, "-O2", "-std=c++17", str(src), "-o", str(exe)], capture_output=True, text=True)
+                if comp.returncode != 0:
+                    return {"status": "CE", "stdout": "", "message": comp.stderr, "time_ms": 0}
+                try:
+                    res = subprocess.run([str(exe)], input=stdin_text, text=True, capture_output=True, timeout=timeout_s)
+                    if res.returncode == 0:
+                        return {"status": "OK", "stdout": res.stdout, "message": "", "time_ms": 10}
+                    else:
+                        return {"status": "RE", "stdout": res.stdout, "message": res.stderr, "time_ms": 10}
+                except subprocess.TimeoutExpired:
+                    return {"status": "TLE", "stdout": "", "message": "运行超时", "time_ms": int(timeout_s * 1000)}
+                except Exception as e:
+                    return {"status": "SE", "stdout": "", "message": str(e), "time_ms": 0}
+        else:
+            return {"status": "CE", "stdout": "", "message": f"本地原生模式暂不支持该语言: {language}", "time_ms": 0}
+
     lang_id = JUDGE0_LANG_MAP.get(language.lower())
     if not lang_id:
         return {"status": "CE", "stdout": "", "message": f"Judge0 暂不支持语言: {language}", "time_ms": 0}
@@ -486,14 +551,145 @@ async def get_problem_testcases(problem_id: int, db: Session = Depends(get_db)):
     return [serialize_testcase(case) for case in cases]
 
 
-@app.post("/api/admin/users")
-async def create_user(username: str, db: Session = Depends(get_db)):
-    new_user = User(username=username, hashed_password="mock_hashed_password")
+from auth import get_password_hash
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/login")
+async def login(req: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == req.username).first()
+    if not user or not verify_password(req.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="用户名或密码错误")
+    
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id, "role": user.role}
+
+@app.get("/api/me")
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+        "avatar_url": current_user.avatar_url
+    }
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/register")
+async def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.username == user.username).first():
+        raise HTTPException(status_code=400, detail="用户名已被注册")
+    hashed_pwd = get_password_hash(user.password)
+    new_user = User(username=user.username, hashed_password=hashed_pwd)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return {"message": "用户创建成功", "user": new_user}
+    return {"message": "用户注册成功", "user_id": new_user.id, "username": new_user.username}
 
+@app.post("/api/users/{user_id}/avatar")
+async def upload_avatar(user_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权修改他人头像")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="请上传有效的图片文件")
+    
+    ext = file.filename.split(".")[-1] if "." in file.filename else "png"
+    filename = f"avatar_{user_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = AVATAR_DIR / filename
+    
+    with filepath.open("wb") as out:
+        shutil.copyfileobj(file.file, out)
+        
+    user.avatar_url = f"/api/uploads/avatars/{filename}"
+    db.commit()
+    return {"message": "头像上传成功", "avatar_url": user.avatar_url}
+
+class GroupCreate(BaseModel):
+    name: str
+    description: str = ""
+
+@app.get("/api/groups")
+async def get_groups(db: Session = Depends(get_db)):
+    groups = db.query(Group).all()
+    return [{"id": g.id, "name": g.name, "description": g.description} for g in groups]
+
+@app.post("/api/groups")
+async def create_group(group: GroupCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if db.query(Group).filter(Group.name == group.name).first():
+        raise HTTPException(status_code=400, detail="组织名已存在")
+    new_group = Group(name=group.name, description=group.description, owner_id=current_user.id)
+    db.add(new_group)
+    current_user.groups.append(new_group)
+    db.commit()
+    db.refresh(new_group)
+    return {"message": "创建成功", "group": {"id": new_group.id, "name": new_group.name}}
+
+@app.post("/api/groups/{group_id}/join")
+async def join_group(group_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="组织不存在")
+    if group not in current_user.groups:
+        current_user.groups.append(group)
+        db.commit()
+    return {"message": "成功加入组织"}
+
+@app.post("/api/groups/{group_id}/leave")
+async def leave_group(group_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="组织不存在")
+    if group in current_user.groups:
+        current_user.groups.remove(group)
+        db.commit()
+    return {"message": "成功退出组织"}
+
+@app.get("/api/users/{user_id}")
+async def get_user_profile(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "avatar_url": user.avatar_url,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "groups": [{"id": g.id, "name": g.name} for g in user.groups],
+        "submissions_count": len(user.submissions),
+        "ac_count": len([s for s in user.submissions if s.status == "OK"])
+    }
+
+@app.get("/api/admin/users")
+async def get_all_users(current_user: User = Depends(check_admin_role), db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [{
+        "id": u.id,
+        "username": u.username,
+        "role": u.role,
+        "avatar_url": u.avatar_url,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+        "groups": [{"id": g.id, "name": g.name} for g in u.groups]
+    } for u in users]
+
+@app.put("/api/admin/users/{user_id}/role")
+async def update_user_role(user_id: int, role: str = Body(embed=True), current_user: User = Depends(check_admin_role), db: Session = Depends(get_db)):
+    if role not in ["admin", "user"]:
+        raise HTTPException(status_code=400, detail="无效的角色")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.role = role
+    db.commit()
+    return {"message": "角色更新成功", "role": user.role}
 
 @app.post("/api/submit")
 async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
