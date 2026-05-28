@@ -6,6 +6,8 @@ import AdminLayout from './components/layout/AdminLayout.vue'
 import HomePage from './pages/HomePage.vue'
 import ProblemsPage from './pages/ProblemsPage.vue'
 import ProblemDetailPage from './pages/ProblemDetailPage.vue'
+import ProblemSolutionsPage from './pages/ProblemSolutionsPage.vue'
+import SolutionPublishPage from './pages/SolutionPublishPage.vue'
 import TrainingsPage from './pages/TrainingsPage.vue'
 import TrainingDetailPage from './pages/TrainingDetailPage.vue'
 import ContestsPage from './pages/ContestsPage.vue'
@@ -26,8 +28,9 @@ const routeComponent = computed(() => {
     home: HomePage,
     problems: ProblemsPage,
     'problem-detail': ProblemDetailPage,
-    'problem-solutions': PlaceholderPage,
+    'problem-solutions': ProblemSolutionsPage,
     'problem-discussions': PlaceholderPage,
+    'solution-publish': SolutionPublishPage,
     trainings: TrainingsPage,
     'training-detail': TrainingDetailPage,
     contests: ContestsPage,
@@ -39,8 +42,10 @@ const routeComponent = computed(() => {
     'submission-detail': SubmissionDetailPage,
     rankings: RankingsPage,
     'freshman-ranking': RankingsPage,
+    discussions: PlaceholderPage,
     'user-profile': ProfilePage,
     me: ProfilePage,
+    about: PlaceholderPage,
     join: PlaceholderPage,
     forbidden: PlaceholderPage,
     'not-found': PlaceholderPage

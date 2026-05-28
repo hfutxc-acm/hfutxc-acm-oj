@@ -14,7 +14,7 @@ void solve() {
 
 int main() {
     cin.tie(0) -> sync_with_stdio(0);
-    int t;
+    int t = 1;
     cin >> t;
     while (t--) solve();
 }`,
@@ -23,7 +23,7 @@ int main() {
 def solve():
     pass
 
-t, = re()
+t = 1; t, = re()
 
 for _ in range(t):
     solve()`,

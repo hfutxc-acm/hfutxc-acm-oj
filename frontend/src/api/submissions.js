@@ -11,7 +11,9 @@ function normalizeSubmission(item) {
     status: item.status,
     time_ms: item.time_ms ?? 0,
     memory_kb: item.memory_kb ?? 0,
-    created_at: item.created_at
+    created_at: item.created_at,
+    code: item.code || '',
+    results: item.results || []
   }
 }
 

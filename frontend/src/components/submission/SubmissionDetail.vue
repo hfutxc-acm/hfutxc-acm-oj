@@ -18,6 +18,7 @@ defineProps({
       <span>语言：{{ submission.language }}</span>
       <span>时间：{{ submission.created_at }}</span>
     </div>
-    <pre class="code-preview">// 后端暂未返回源码详情，后续接入 submission detail API。</pre>
+    <pre class="code-preview" v-if="submission.code">{{ submission.code }}</pre>
+    <pre class="code-preview" v-else>// 后端暂未返回源码详情，后续接入 submission detail API。</pre>
   </section>
 </template>

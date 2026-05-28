@@ -18,3 +18,5 @@ typing-extensions==4.15.0
 typing-inspection==0.4.2
 uvicorn==0.47.0
 zope-interface==8.4
+requests
+python-dotenv

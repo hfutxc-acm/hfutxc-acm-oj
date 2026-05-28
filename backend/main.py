@@ -8,6 +8,12 @@ import sys
 import tempfile
 import time
 import zipfile
+import os
+import base64
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,6 +32,21 @@ except ImportError:
 DATA_ROOT = PROJECT_ROOT / "data" / "problems"
 CASE_FILE_RE = re.compile(r"^([1-9]\d*)\.(in|out)$")
 FORBIDDEN_SUFFIXES = {".exe", ".py", ".bat", ".sh", ".cmd", ".ps1"}
+
+JUDGE0_API_URL = os.environ.get("JUDGE0_API_URL", "https://judge0-ce.p.rapidapi.com")
+JUDGE0_API_KEY = os.environ.get("JUDGE0_API_KEY", "")
+
+JUDGE0_LANG_MAP = {
+    "cpp": 54, "c++": 54, "c++17": 54,
+    "c": 50,
+    "python": 71, "py": 71, "python3": 71,
+    "java": 62,
+    "go": 60,
+    "rust": 73,
+    "javascript": 63, "js": 63,
+    "csharp": 51, "c#": 51,
+    "kotlin": 78
+}
 
 
 def ensure_sqlite_columns():
@@ -218,56 +239,58 @@ def replace_problem_data(problem_id: int, upload_path: Path, orders: list[int], 
     db.commit()
 
 
-def run_source_against_input(code: str, language: str, stdin_text: str, timeout_s: float):
-    language = language.lower()
-    with tempfile.TemporaryDirectory(prefix="oj-run-") as tmp:
-        tmp_dir = Path(tmp)
-        start = time.perf_counter()
+def judge0_submit(code: str, language: str, stdin_text: str, timeout_s: float):
+    lang_id = JUDGE0_LANG_MAP.get(language.lower())
+    if not lang_id:
+        return {"status": "CE", "stdout": "", "message": f"Judge0 暂不支持语言: {language}", "time_ms": 0}
 
-        if language in {"python", "py", "python3"}:
-            source = tmp_dir / "main.py"
-            source.write_text(code, encoding="utf-8")
-            cmd = [sys.executable, str(source)]
-        elif language in {"cpp", "c++", "c++17"}:
-            source = tmp_dir / "main.cpp"
-            exe = tmp_dir / ("main.exe" if sys.platform.startswith("win") else "main")
-            source.write_text(code, encoding="utf-8")
-            compiler = shutil.which("g++")
-            if not compiler:
-                return {"status": "CE", "stdout": "", "message": "找不到 g++ 编译器", "time_ms": 0}
-            compile_proc = subprocess.run(
-                [compiler, str(source), "-std=c++17", "-O2", "-o", str(exe)],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=15,
-            )
-            if compile_proc.returncode != 0:
-                return {"status": "CE", "stdout": "", "message": compile_proc.stderr[-1000:], "time_ms": 0}
-            cmd = [str(exe)]
+    payload = {
+        "source_code": base64.b64encode(code.encode("utf-8")).decode("utf-8"),
+        "language_id": lang_id,
+        "stdin": base64.b64encode(stdin_text.encode("utf-8")).decode("utf-8"),
+        "cpu_time_limit": timeout_s
+    }
+
+    headers = {"Content-Type": "application/json"}
+    if "rapidapi" in JUDGE0_API_URL:
+        host = JUDGE0_API_URL.replace("https://", "").replace("http://", "").split("/")[0]
+        headers["x-rapidapi-host"] = host
+        if JUDGE0_API_KEY:
+            headers["x-rapidapi-key"] = JUDGE0_API_KEY
+
+    try:
+        url = f"{JUDGE0_API_URL}/submissions?base64_encoded=true&wait=true"
+        resp = requests.post(url, json=payload, headers=headers, timeout=max(timeout_s + 5, 10))
+        resp.raise_for_status()
+        data = resp.json()
+
+        status_id = data.get("status", {}).get("id", 0)
+        time_elapsed = int(float(data.get("time") or 0) * 1000)
+
+        stdout_raw = data.get("stdout")
+        stdout = base64.b64decode(stdout_raw).decode("utf-8") if stdout_raw else ""
+
+        compile_output_raw = data.get("compile_output")
+        compile_output = base64.b64decode(compile_output_raw).decode("utf-8", errors="replace") if compile_output_raw else ""
+
+        message_raw = data.get("message")
+        stderr = base64.b64decode(message_raw).decode("utf-8", errors="replace") if message_raw else ""
+
+        err_msg = compile_output or stderr
+
+        if status_id == 3 or status_id == 4:
+            return {"status": "OK", "stdout": stdout, "message": "", "time_ms": time_elapsed}
+        elif status_id == 5:
+            return {"status": "TLE", "stdout": stdout, "message": "运行超时", "time_ms": time_elapsed}
+        elif status_id == 6:
+            return {"status": "CE", "stdout": "", "message": err_msg, "time_ms": 0}
+        elif 7 <= status_id <= 12:
+            return {"status": "RE", "stdout": stdout, "message": err_msg, "time_ms": time_elapsed}
         else:
-            return {"status": "CE", "stdout": "", "message": f"暂不支持语言: {language}", "time_ms": 0}
+            return {"status": "SE", "stdout": stdout, "message": f"Judge0 System Error: {status_id} {err_msg}", "time_ms": 0}
 
-        try:
-            proc = subprocess.run(
-                cmd,
-                input=stdin_text,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout_s,
-            )
-        except subprocess.TimeoutExpired:
-            return {"status": "TLE", "stdout": "", "message": "运行超时", "time_ms": int(timeout_s * 1000)}
-        except Exception as exc:
-            return {"status": "SE", "stdout": "", "message": str(exc), "time_ms": 0}
-
-        time_ms = int((time.perf_counter() - start) * 1000)
-        if proc.returncode != 0:
-            return {"status": "RE", "stdout": proc.stdout, "message": proc.stderr[-1000:], "time_ms": time_ms}
-        return {"status": "OK", "stdout": proc.stdout, "message": "", "time_ms": time_ms}
+    except requests.RequestException as exc:
+        return {"status": "SE", "stdout": "", "message": f"API调用失败: {str(exc)}", "time_ms": 0}
 
 
 async def run_judger_worker(submission_id: int, db_session_factory):
@@ -307,7 +330,7 @@ async def run_judger_worker(submission_id: int, db_session_factory):
                 db.add(SubmissionResult(submission_id=submission_id, testcase_id=case.id, status="SE", message=str(exc)))
                 break
 
-            run_result = run_source_against_input(submission.code, submission.language, stdin_text, timeout_s)
+            run_result = judge0_submit(submission.code, submission.language, stdin_text, timeout_s)
             status = run_result["status"]
             if status == "OK":
                 status = "AC" if run_result["stdout"].rstrip() == expected_output.rstrip() else "WA"
@@ -504,11 +527,24 @@ async def get_submission_status(submission_id: int, db: Session = Depends(get_db
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
         raise HTTPException(status_code=404, detail="提交记录不存在")
+    results = db.query(SubmissionResult).filter(SubmissionResult.submission_id == submission_id).all()
     return {
         "id": submission.id,
         "status": submission.status,
         "language": submission.language,
+        "code": submission.code,
+        "user_id": submission.user_id,
+        "problem_id": submission.problem_id,
         "created_at": submission.created_at,
+        "results": [
+            {
+                "testcase_id": r.testcase_id,
+                "status": r.status,
+                "message": r.message,
+                "time_ms": r.time_ms,
+                "memory_kb": r.memory_kb
+            } for r in results
+        ]
     }
 
 
