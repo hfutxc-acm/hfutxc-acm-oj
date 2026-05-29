@@ -18,7 +18,7 @@ uv pip install -r requirements.txt
 
 ```sh
 cd backend
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 ```
 
 ```sh
@@ -42,7 +42,7 @@ uv pip install -r requirements.txt
 
 ```sh
 cd backend
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 ```
 
 ```sh
