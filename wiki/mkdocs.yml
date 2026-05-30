@@ -1,0 +1,60 @@
+site_name: HFUTXC ACM 知识库
+site_description: 合肥工业大学宣城校区 ACM 协会官方知识库与使用指南
+theme:
+  name: material
+  custom_dir: overrides
+  language: zh
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: 切换至夜间模式
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: 切换至白天模式
+
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+nav:
+  - 首页: index.md
+  - 平台刷题指南:
+    - Codeforces 指南: platforms/codeforces.md
+    - AtCoder 指南: platforms/atcoder.md
+    - 牛客竞赛指南: platforms/nowcoder.md
+  - 赛事介绍:
+    - ICPC/CCPC 赛制详解: contests/icpc_ccpc.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - admonition
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/palette.js
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

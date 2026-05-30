@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <script>
+    (function() {
+      var savedColor = localStorage.getItem("custom-primary-color");
+      if (!savedColor) return;
+
+      var applyColor = function() {
+        if (document.body && document.body.getAttribute("data-md-color-primary") !== savedColor) {
+          document.body.setAttribute("data-md-color-primary", savedColor);
+        }
+      };
+
+      // Material for MkDocs actively synchronizes color state from hidden HTML inputs on load.
+      // We must use a MutationObserver to intercept this and enforce our custom color dynamically.
+      var observer = new MutationObserver(applyColor);
+      observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-md-color-primary"] });
+    })();
+  </script>
+{% endblock %}

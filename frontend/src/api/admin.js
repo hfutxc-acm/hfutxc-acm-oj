@@ -33,3 +33,20 @@ export function uploadProblemData(problemId, file) {
 export function getTestcases(problemId) {
   return request(`/api/admin/problems/${problemId}/testcases`)
 }
+
+export function getUsers() {
+  return request('/api/admin/users')
+}
+
+export function updateUserRole(userId, role) {
+  return request(`/api/admin/users/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role })
+  })
+}
+
+export function transferSuperAdmin(userId) {
+  return request(`/api/admin/transfer_super_admin/${userId}`, {
+    method: 'POST'
+  })
+}

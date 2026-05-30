@@ -9,7 +9,12 @@
         <input type="file" ref="fileInput" style="display: none" accept="image/*" @change="handleFileUpload" />
       </div>
       <div class="info-section">
-        <h1 class="username">{{ user.username }} <span class="role-badge" :class="user.role">{{ user.role === 'admin' ? '管理员' : '用户' }}</span></h1>
+        <h1 class="username">
+          {{ user.username }} 
+          <span class="role-badge" :class="user.role">
+            {{ user.role === 'super_admin' ? '超级管理员' : (user.role === 'admin' ? '教师/管理员' : '学生') }}
+          </span>
+        </h1>
         <p class="join-date">加入时间: {{ new Date(user.created_at).toLocaleDateString() }}</p>
         <div class="teams-list">
           <span class="team-tag" v-for="team in user.groups" :key="team.id">
@@ -40,13 +45,14 @@
 import { ref, onMounted, computed } from 'vue'
 import { currentRoute } from '../router.js'
 import { authStore } from '../stores/authStore'
+import { usersApi } from '../api/users'
 
 const user = ref(null)
 const fileInput = ref(null)
 
 const canEditAvatar = computed(() => {
   if (!authStore.isAuthenticated) return false
-  return authStore.currentUser.id === user.value?.id || authStore.currentUser.role === 'admin'
+  return authStore.currentUser?.id === user.value?.id || ['admin', 'super_admin'].includes(authStore.currentUser?.role)
 })
 
 function getAvatarUrl(u) {
@@ -66,29 +72,15 @@ async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
   
-  const formData = new FormData()
-  formData.append('file', file)
-  
   try {
-    const res = await fetch(`http://localhost:8000/api/users/${user.value.id}/avatar`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${authStore.token}` },
-      body: formData
-    })
-    if (res.ok) {
-      const data = await res.json()
-      user.value.avatar_url = data.avatar_url
-      // If updating own avatar, sync store
-      if (authStore.currentUser.id === user.value.id) {
-        authStore.currentUser.avatar_url = data.avatar_url
-      }
-      alert("头像更换成功！")
-    } else {
-      const err = await res.json()
-      alert(err.detail || "上传失败")
+    const data = await usersApi.uploadAvatar(user.value.id, file)
+    user.value.avatar_url = data.avatar_url
+    if (authStore.currentUser?.id === user.value.id) {
+      authStore.currentUser.avatar_url = data.avatar_url
     }
+    alert("头像更换成功！")
   } catch (e) {
-    alert("网络错误")
+    alert(e.message || "上传失败")
   } finally {
     event.target.value = ''
   }
@@ -96,14 +88,10 @@ async function handleFileUpload(event) {
 
 onMounted(async () => {
   try {
-    const res = await fetch(`http://localhost:8000/api/users/${currentRoute.value.params.uid}`)
-    if (res.ok) {
-      user.value = await res.json()
-    } else {
-      alert("用户不存在")
-    }
+    const data = await usersApi.getUserProfile(currentRoute.value.params.uid)
+    user.value = data
   } catch (e) {
-    console.error("Failed to fetch user", e)
+    alert(e.message || "用户不存在")
   }
 })
 </script>

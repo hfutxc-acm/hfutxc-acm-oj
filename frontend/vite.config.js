@@ -13,6 +13,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/wiki': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

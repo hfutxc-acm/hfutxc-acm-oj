@@ -60,7 +60,7 @@ button {
   gap: 20px;
   align-items: center;
   padding: 14px 28px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
@@ -99,7 +99,7 @@ button {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #334155;
+  color: var(--nav-btn-color);
   cursor: pointer;
   font-weight: 700;
   white-space: nowrap;
@@ -108,7 +108,7 @@ button {
 .main-nav button.active,
 .main-nav button:hover,
 .user-chip {
-  background: #e8f1fb;
+  background: var(--nav-btn-active-bg);
   color: var(--primary-dark);
 }
 
@@ -140,7 +140,7 @@ button {
 .placeholder-page h1,
 .profile-page h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--heading-text);
   font-size: clamp(30px, 4vw, 52px);
   line-height: 1.08;
 }
@@ -236,7 +236,7 @@ button {
 
 .stat-card strong {
   font-size: 32px;
-  color: #0f172a;
+  color: var(--heading-text);
 }
 
 .list-card,
@@ -265,9 +265,9 @@ button {
   width: 100%;
   min-height: 42px;
   padding: 9px 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--control-border);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--control-bg);
   color: var(--text);
   outline: none;
 }
@@ -309,20 +309,21 @@ button {
 .data-table th,
 .data-table td {
   padding: 13px 14px;
-  border-bottom: 1px solid #e5edf6;
+  border-bottom: 1px solid var(--table-td-border);
   text-align: left;
   white-space: nowrap;
+  color: var(--table-td-text);
 }
 
 .data-table th {
-  background: var(--panel-soft);
-  color: #475569;
+  background: var(--table-th-bg);
+  color: var(--table-th-text);
   font-size: 13px;
   font-weight: 800;
 }
 
 .data-table tbody tr:hover {
-  background: #f8fbff;
+  background: var(--table-hover-bg);
 }
 
 .link-button {
@@ -351,8 +352,8 @@ button {
 }
 
 .ghost-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
+  border: 1px solid var(--control-border);
+  background: var(--ghost-bg);
   color: #334155;
 }
 
@@ -391,7 +392,7 @@ button {
 
 .badge,
 .tag {
-  background: #e8f1fb;
+  background: var(--nav-btn-active-bg);
   color: var(--primary-dark);
 }
 
@@ -798,119 +799,26 @@ pre,
   --muted: #9ca3af;     /* Light gray muted text */
   --primary: #3b82f6;   /* Rich bright blue */
   --primary-dark: #60a5fa;
+
+  --header-bg: rgba(17, 24, 39, 0.95);
+  --nav-btn-color: #9ca3af;
+  --nav-btn-active-bg: #1e293b;
+  --heading-text: #f3f4f6;
+  --tabbar-bg: #1f2937;
+  --tabbar-btn-color: #9ca3af;
+  --tabbar-active-bg: #111827;
+  --table-th-bg: #1f2937;
+  --table-th-text: #d1d5db;
+  --table-td-border: #1f2937;
+  --table-td-text: #e5e7eb;
+  --table-hover-bg: rgba(255, 255, 255, 0.02);
+  --control-bg: #111827;
+  --control-border: #374151;
+  --ghost-bg: #111827;
+  --ghost-hover-bg: #1f2937;
+  --pill-bg: #1f2937;
+  --pill-text: #d1d5db;
+  --badge-bg: #1e293b;
+  --progress-bg: #1f2937;
 }
 
-/* Specific dark mode selector overrides */
-:root.dark body {
-  background: var(--bg);
-  color: var(--text);
-}
-
-:root.dark .app-header {
-  background: rgba(17, 24, 39, 0.95);
-  border-bottom: 1px solid var(--border);
-}
-
-:root.dark .main-nav button {
-  color: #9ca3af;
-}
-
-:root.dark .main-nav button.active,
-:root.dark .main-nav button:hover,
-:root.dark .user-chip {
-  background: #1e293b;
-  color: var(--primary-dark);
-}
-
-:root.dark .page-heading h1,
-:root.dark .hero-section h1,
-:root.dark .statement h1,
-:root.dark .placeholder-page h1,
-:root.dark .profile-page h1 {
-  color: #f3f4f6;
-}
-
-:root.dark .stat-card strong {
-  color: #f3f4f6;
-}
-
-:root.dark .tabbar {
-  background: #1f2937;
-}
-
-:root.dark .tabbar button {
-  color: #9ca3af;
-}
-
-:root.dark .tabbar button.active {
-  background: #111827;
-  color: var(--primary-dark);
-}
-
-:root.dark .data-table th {
-  background: #1f2937;
-  color: #d1d5db;
-}
-
-:root.dark .data-table td {
-  border-bottom: 1px solid #1f2937;
-  color: #e5e7eb;
-}
-
-:root.dark .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-:root.dark .control {
-  background: #111827;
-  border-color: #374151;
-  color: #f3f4f6;
-}
-
-:root.dark .control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
-}
-
-:root.dark .ghost-btn {
-  background: #111827;
-  border-color: #374151;
-  color: #d1d5db;
-}
-
-:root.dark .ghost-btn:hover {
-  background: #1f2937;
-  color: #ffffff;
-}
-
-:root.dark .case-pill,
-:root.dark .problem-status-list span {
-  background: #1f2937;
-  color: #d1d5db;
-}
-
-:root.dark .badge,
-:root.dark .tag {
-  background: #1e293b;
-  color: var(--primary-dark);
-}
-
-:root.dark .meta-grid span,
-:root.dark .detail-grid span {
-  background: #1f2937;
-  color: #d1d5db;
-}
-
-:root.dark .markdown-viewer p {
-  color: #d1d5db;
-}
-
-:root.dark .progress-bar {
-  background: #1f2937;
-}
-
-:root.dark .empty-state,
-:root.dark .loading-state {
-  border-color: var(--border);
-  color: var(--muted);
-}

@@ -41,6 +41,6 @@ export function logout() {
 }
 
 export function canAccessAdmin() {
-  return authStore.currentUser?.role === 'admin'
+  return authStore.currentUser?.role === 'admin' || authStore.currentUser?.role === 'super_admin'
 }
 

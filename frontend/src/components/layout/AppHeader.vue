@@ -11,8 +11,17 @@ const navItems = [
   { label: '发布题解', path: '/solutions/publish' },
   { label: '排行', path: '/rankings' },
   { label: '团队', path: '/teams' },
-  { label: '管理', path: '/admin' }
+  { label: '管理', path: '/admin' },
+  { label: '知识库', path: '/wiki', external: true }
 ]
+
+function handleNavClick(item) {
+  if (item.external) {
+    window.location.href = item.path
+  } else {
+    navigateTo(item.path)
+  }
+}
 
 function isActive(path) {
   if (path === '/') return currentRoute.value.name === 'home'
@@ -31,7 +40,7 @@ function isActive(path) {
         v-for="item in navItems"
         :key="item.path"
         :class="{ active: isActive(item.path) }"
-        @click="navigateTo(item.path)"
+        @click="handleNavClick(item)"
       >
         {{ item.label }}
       </button>

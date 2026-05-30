@@ -11,7 +11,11 @@ const props = defineProps({
 
 const emit = defineEmits(['submitted'])
 
-const language = ref('cpp')
+const getStoredLanguage = () => {
+  return localStorage.getItem('oj-editor-language') || 'cpp'
+}
+
+const language = ref(getStoredLanguage())
 const showSettings = ref(false)
 const editorRef = shallowRef()
 
@@ -50,17 +54,27 @@ watch(() => themeStore.currentTheme, (newGlobalTheme) => {
   }
 })
 
-const code = ref(templates.cpp)
+const getStoredCode = () => {
+  return localStorage.getItem(`oj-editor-code-${props.problemId}`) || null
+}
+
+const code = ref(getStoredCode() || templates[language.value])
 const message = ref('')
 const saving = ref(false)
 
 // Automatically switch templates if current code matches default or is empty
 watch(language, (newLang, oldLang) => {
+  localStorage.setItem('oj-editor-language', newLang)
   const oldTemplate = templates[oldLang]?.trim()
   const currentCode = code.value?.trim() || ''
   if (!currentCode || currentCode === oldTemplate) {
     code.value = templates[newLang]
   }
+})
+
+// Persist code per problem
+watch(code, (newCode) => {
+  localStorage.setItem(`oj-editor-code-${props.problemId}`, newCode)
 })
 
 const editorOptions = computed(() => ({

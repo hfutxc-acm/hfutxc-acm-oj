@@ -40,51 +40,41 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { authStore } from '../stores/authStore'
+import { groupsApi } from '../api/groups'
 
 const teams = ref([])
 const showCreateModal = ref(false)
 const newTeam = ref({ name: '', description: '' })
 
 async function fetchTeams() {
-  const res = await fetch('http://localhost:8000/api/groups')
-  teams.value = await res.json()
+  try {
+    teams.value = await groupsApi.getGroups()
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 async function createTeam() {
   if (!authStore.isAuthenticated) return alert("请先登录")
   if (!newTeam.value.name) return alert('名称不能为空')
-  const res = await fetch('http://localhost:8000/api/groups', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authStore.token}`
-    },
-    body: JSON.stringify(newTeam.value)
-  })
-  if (res.ok) {
+  
+  try {
+    await groupsApi.createGroup(newTeam.value.name, newTeam.value.description)
     showCreateModal.value = false
     newTeam.value = { name: '', description: '' }
     fetchTeams()
-  } else {
-    const err = await res.json()
-    alert(err.detail || '创建失败')
+  } catch (e) {
+    alert(e.message || '创建失败')
   }
 }
 
 async function joinTeam(groupId) {
   if (!authStore.isAuthenticated) return alert("请先登录")
-  const res = await fetch(`http://localhost:8000/api/groups/${groupId}/join`, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authStore.token}`
-    },
-    body: JSON.stringify({})
-  })
-  if (res.ok) {
+  try {
+    await groupsApi.joinGroup(groupId)
     alert("加入成功！")
-  } else {
-    alert("加入失败")
+  } catch (e) {
+    alert(e.message || "加入失败")
   }
 }
 
