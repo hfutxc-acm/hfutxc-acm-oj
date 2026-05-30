@@ -22,11 +22,6 @@ import AdminHomePage from './pages/AdminHomePage.vue'
 import AdminProblemsPage from './pages/AdminProblemsPage.vue'
 import AdminProblemFormPage from './pages/AdminProblemFormPage.vue'
 import AdminPlaceholderPage from './pages/AdminPlaceholderPage.vue'
-import UserProfilePage from './pages/UserProfilePage.vue'
-import TeamsPage from './pages/TeamsPage.vue'
-import AdminUsersPage from './pages/admin/AdminUsersPage.vue'
-import AuthPage from './pages/AuthPage.vue'
-
 
 const routeComponent = computed(() => {
   const map = {
@@ -48,10 +43,8 @@ const routeComponent = computed(() => {
     rankings: RankingsPage,
     'freshman-ranking': RankingsPage,
     discussions: PlaceholderPage,
-    'user-profile': UserProfilePage,
-    teams: TeamsPage,
-    auth: AuthPage,
-    me: UserProfilePage,
+    'user-profile': ProfilePage,
+    me: ProfilePage,
     about: PlaceholderPage,
     join: PlaceholderPage,
     forbidden: PlaceholderPage,
@@ -69,7 +62,7 @@ const adminComponent = computed(() => {
     'admin-contests': AdminPlaceholderPage,
     'admin-contest-new': AdminPlaceholderPage,
     'admin-trainings': AdminPlaceholderPage,
-    'admin-users': AdminUsersPage
+    'admin-users': AdminPlaceholderPage
   }
   return map[currentRoute.value.name] || AdminHomePage
 })
