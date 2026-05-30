@@ -8,7 +8,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="table-wrap" style="font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+  <div class="table-wrap">
     <table class="data-table">
       <thead>
         <tr>
@@ -22,10 +22,10 @@ defineProps({
       <tbody>
         <tr v-for="problem in problems" :key="problem.id" class="problem-row">
           <td class="status-cell">
-            <svg v-if="problem.status === 'AC'" viewBox="0 0 24 24" width="20" height="20" stroke="#52c41a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <svg v-if="problem.status === 'AC'" viewBox="0 0 24 24" width="18" height="18" stroke="var(--success)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><polyline points="20 6 9 17 4 12"></polyline></svg>
             <span v-else class="status-dash">-</span>
           </td>
-          <td class="id-cell">{{ problem.id }}</td>
+          <td class="id-cell">#{{ problem.id }}</td>
           <td>
             <div class="title-cell">
               <button class="link-button title-btn" @click="navigateTo(`/problems/${problem.id}`)">{{ problem.title }}</button>
@@ -51,10 +51,12 @@ defineProps({
 
 <style scoped>
 .table-wrap {
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
+  width: 100%;
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
 }
 
 .data-table {
@@ -64,28 +66,38 @@ defineProps({
 }
 
 .data-table th, .data-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--table-td-border);
+  white-space: nowrap;
+  color: var(--table-td-text);
+  font-size: 0.9rem;
 }
 
 .data-table th {
-  background-color: #fafafa;
-  color: #606266;
-  font-weight: 500;
-  font-size: 0.95rem;
+  background-color: var(--table-th-bg);
+  color: var(--table-th-text);
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--border);
 }
 
-.status-th { width: 60px; text-align: center; }
-.id-th { width: 80px; }
-.diff-th { width: 120px; }
-.pass-th { width: 150px; }
+.status-th { width: 70px; text-align: center; }
+.id-th { width: 90px; }
+.diff-th { width: 130px; }
+.pass-th { width: 160px; }
 
 .problem-row {
-  transition: background-color 0.3s;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .problem-row:hover {
-  background-color: #e6f7ff; /* 淡蓝色 */
+  background-color: var(--table-hover-bg);
+}
+
+.problem-row:last-child td {
+  border-bottom: none;
 }
 
 .status-cell {
@@ -98,13 +110,14 @@ defineProps({
 }
 
 .status-dash {
-  color: #c0c4cc;
+  color: var(--muted);
   font-weight: bold;
 }
 
 .id-cell {
-  color: #666;
-  font-family: Monaco, Consolas, monospace;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-weight: 600;
 }
 
 .title-cell {
@@ -118,15 +131,16 @@ defineProps({
   background: none;
   border: none;
   padding: 0;
-  color: #333;
-  font-size: 1rem;
-  font-weight: 500;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   transition: color 0.2s;
+  text-align: left;
 }
 
 .title-btn:hover {
-  color: #3498db;
+  color: var(--primary);
 }
 
 .inline-tags {
@@ -136,38 +150,42 @@ defineProps({
 }
 
 .capsule-tag {
-  background-color: #2db7f5; /* 青绿色 */
-  color: #fff;
-  padding: 1px 6px;
-  border-radius: 3px; /* 极小圆角 */
-  font-size: 0.75rem; /* 较小字体 */
+  background-color: var(--nav-btn-active-bg);
+  color: var(--primary-dark);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .progress-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
 }
 
 .progress-bar {
   flex: 1;
   height: 8px;
-  background-color: #f0f0f0; /* 灰色底色 */
-  border-radius: 4px;
+  background-color: var(--panel-soft);
+  border-radius: 999px;
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 
 .progress-fill {
   height: 100%;
-  background-color: #3498db; /* 蓝色填充 */
-  border-radius: 4px;
+  background-color: var(--primary);
+  border-radius: 999px;
 }
 
 .progress-text {
-  font-size: 0.85rem;
-  color: #666;
-  min-width: 40px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 700;
+  min-width: 38px;
   text-align: right;
 }
 </style>

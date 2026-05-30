@@ -16,6 +16,16 @@ const tags = ['全部', 'DP', '图论', '数论', '字符串', '数据结构', '
 const sources = ['全部', '洛谷', 'Codeforces', 'SPOJ', '校赛', '新生赛', 'ICPC', '自建']
 const statuses = ['全部', '未做', '已 AC', '尝试过', '收藏']
 
+// 难度对应的颜色点指示器
+const diffColors = {
+  '入门': '#22c55e',       // 绿色
+  '普及-': '#3b82f6',      // 蓝色
+  '普及': '#a855f7',       // 紫色
+  '提高': '#f97316',       // 橙色
+  '省选': '#ef4444',       // 红色
+  'ICPC区域赛': '#1e293b'   // 深色
+}
+
 function patch(key, value) {
   emit('update', { ...props.filters, [key]: value })
 }
@@ -27,249 +37,322 @@ function clearFilters() {
     difficulty: '全部',
     tag: '全部',
     status: '全部',
+    source: '全部',
     searchContent: false
   })
 }
-
-const activeFiltersText = computed(() => {
-  const parts = []
-  if (props.filters.difficulty !== '全部') parts.push(props.filters.difficulty)
-  if (props.filters.tag !== '全部') parts.push(props.filters.tag)
-  if (props.filters.status !== '全部') parts.push(props.filters.status)
-  if (props.filters.searchContent) parts.push('搜索题面')
-  if (props.filters.keyword) parts.push(`"${props.filters.keyword}"`)
-  return parts.length ? parts.join(', ') : '暂无'
-})
 </script>
 
 <template>
-  <section class="filter-panel complex-filter" style="font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;">
-    <!-- Row 1: 所属题库 -->
-    <div class="filter-row">
-      <span class="row-label">所属题库：</span>
-      <div class="tab-list">
-        <button 
-          v-for="src in sources" 
+  <aside class="filter-sidebar" style="font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+    <!-- 搜索板块 -->
+    <div class="filter-section">
+      <h3 class="section-title">搜索题目</h3>
+      <div class="search-box">
+        <div class="input-wrap">
+          <input
+            :value="filters.keyword"
+            class="control search-input"
+            placeholder="搜算法、标题或编号..."
+            @input="patch('keyword', $event.target.value)"
+          />
+          <span class="search-icon">🔍</span>
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" :checked="filters.searchContent" @change="patch('searchContent', $event.target.checked)" />
+          <span>搜索题面内容</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 所属题库 -->
+    <div class="filter-section">
+      <h3 class="section-title">所属题库</h3>
+      <div class="sidebar-menu">
+        <button
+          v-for="src in sources"
           :key="src"
-          class="tab-item"
+          class="menu-item"
           :class="{ active: filters.source === src }"
           @click="patch('source', src)"
         >
-          {{ src }}
+          <span class="menu-label">{{ src }}</span>
         </button>
       </div>
     </div>
 
-    <!-- Row 2: 筛选条件 & 关键词 -->
-    <div class="filter-row">
-      <span class="row-label">筛选条件：</span>
-      <select class="control select-control" :value="filters.difficulty" @change="patch('difficulty', $event.target.value)">
-        <option value="全部">题目难度</option>
-        <option v-for="item in difficulties.slice(1)" :key="item" :value="item">{{ item }}</option>
-      </select>
-      <select class="control select-control" :value="filters.tag" @change="patch('tag', $event.target.value)">
-        <option value="全部">算法/来源</option>
-        <option v-for="item in tags.slice(1)" :key="item" :value="item">{{ item }}</option>
-      </select>
-      <select class="control select-control" :value="filters.status" @change="patch('status', $event.target.value)">
-        <option value="全部">状态</option>
-        <option v-for="item in statuses.slice(1)" :key="item" :value="item">{{ item }}</option>
-      </select>
-      
-      <span class="row-label" style="margin-left: 8px;">关键词：</span>
-      <input
-        :value="filters.keyword"
-        class="control search-input"
-        placeholder="算法、标题或题目编号"
-        @input="patch('keyword', $event.target.value)"
-        @keyup.enter="patch('keyword', filters.keyword)"
-      />
-      <label class="checkbox-label">
-        <input type="checkbox" :checked="filters.searchContent" @change="patch('searchContent', $event.target.checked)" />
-        搜索题面
-      </label>
-    </div>
-
-    <!-- Row 3: 已选择 & 查看帮助 -->
-    <div class="filter-row status-row">
-      <span class="status-text">已选择：<span class="status-val">{{ activeFiltersText }}</span></span>
-      <a href="#" class="help-link">查看帮助</a>
-    </div>
-
-    <!-- Row 4: 统计与操作 -->
-    <div class="filter-row action-row">
-      <span class="total-text">共计 {{ total }} 条结果</span>
-      <div class="actions">
-        <a href="#" class="clear-btn" @click.prevent="clearFilters">清除筛选</a>
-        <button class="search-btn" @click="patch('keyword', filters.keyword)">
-          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          搜索
+    <!-- 题目难度 -->
+    <div class="filter-section">
+      <h3 class="section-title">题目难度</h3>
+      <div class="sidebar-menu">
+        <button
+          v-for="diff in difficulties"
+          :key="diff"
+          class="menu-item"
+          :class="{ active: filters.difficulty === diff }"
+          @click="patch('difficulty', diff)"
+        >
+          <span 
+            v-if="diff !== '全部'" 
+            class="color-dot" 
+            :style="{ backgroundColor: diffColors[diff] }"
+          ></span>
+          <span class="menu-label">{{ diff }}</span>
         </button>
       </div>
     </div>
-  </section>
+
+    <!-- 算法标签 -->
+    <div class="filter-section">
+      <h3 class="section-title">算法标签</h3>
+      <div class="tag-cloud">
+        <button
+          v-for="tg in tags"
+          :key="tg"
+          class="sidebar-tag"
+          :class="{ active: filters.tag === tg }"
+          @click="patch('tag', tg)"
+        >
+          {{ tg }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 做题状态 -->
+    <div class="filter-section">
+      <h3 class="section-title">做题状态</h3>
+      <div class="sidebar-menu">
+        <button
+          v-for="stat in statuses"
+          :key="stat"
+          class="menu-item"
+          :class="{ active: filters.status === stat }"
+          @click="patch('status', stat)"
+        >
+          <span v-if="stat === '已 AC'" class="status-indicator ac">✓</span>
+          <span v-else-if="stat === '尝试过'" class="status-indicator tried">!</span>
+          <span v-else-if="stat === '收藏'" class="status-indicator fav">★</span>
+          <span v-else class="status-indicator dot"></span>
+          <span class="menu-label">{{ stat }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 边栏页脚统计与清除 -->
+    <div class="sidebar-footer">
+      <span class="total-count">共 {{ total }} 道题目</span>
+      <button class="clear-link-btn" @click="clearFilters">重置筛选</button>
+    </div>
+  </aside>
 </template>
 
 <style scoped>
-.complex-filter {
+.filter-sidebar {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
-  padding: 10px 16px;
-  margin-bottom: 12px;
-  gap: 8px;
-  font-size: 13px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+  align-self: start;
 }
 
-.filter-row {
+.filter-section {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  overflow-x: auto;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* 隐藏滚动条让视觉更干净 */
-.filter-row::-webkit-scrollbar {
-  display: none;
-}
-.filter-row {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.row-label {
-  color: #888;
-  white-space: nowrap;
+.section-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin: 0 0 4px 0;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 6px;
 }
 
-.ml-auto {
-  margin-left: auto;
-}
-
-.tab-list {
+/* 搜索框 */
+.search-box {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.tab-item {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 3px;
-  color: #666;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.tab-item:hover {
-  background-color: #e6f2fa;
-  color: #3498db;
-}
-
-.tab-item.active {
-  background-color: #3498db;
-  color: #fff;
-}
-
-.control {
-  font-size: 13px;
-  height: 28px;
-  border: 1px solid #dcdfe6;
-  border-radius: 3px;
-  background: #fff;
-  color: #333;
-  padding: 0 8px;
-  box-sizing: border-box;
-}
-
-.select-control {
-  min-width: 100px;
-  cursor: pointer;
+.input-wrap {
+  position: relative;
+  width: 100%;
 }
 
 .search-input {
-  width: 180px;
+  width: 100%;
+  padding-right: 32px;
+  height: 36px;
+  font-size: 0.9rem;
+  background: var(--panel-soft);
+  border-color: var(--border);
+}
+
+.search-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.9rem;
+  pointer-events: none;
 }
 
 .checkbox-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #555;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
   cursor: pointer;
-  white-space: nowrap;
+  user-select: none;
 }
 
-.status-row {
-  margin-top: 4px;
-}
-
-.status-text {
-  color: #999;
-}
-
-.status-val {
-  color: #555;
-}
-
-.help-link {
-  color: #3498db;
-  text-decoration: none;
-  margin-left: 8px;
-}
-
-.help-link:hover {
-  text-decoration: underline;
-}
-
-.action-row {
-  justify-content: space-between;
-  border-top: 1px dashed #ebeef5;
-  padding-top: 8px;
-  margin-top: 2px;
-}
-
-.total-text {
-  color: #333;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.clear-btn {
-  color: #666;
-  text-decoration: none;
+.checkbox-label input {
   cursor: pointer;
 }
 
-.clear-btn:hover {
-  color: #3498db;
+/* 侧边栏垂直菜单 */
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.search-btn {
+.menu-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background-color: #3498db;
-  color: white;
+  gap: 8px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  background: transparent;
   border: none;
-  height: 28px;
-  padding: 0 14px;
-  border-radius: 3px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.search-btn:hover {
-  background-color: #2980b9;
+.menu-item:hover {
+  background: var(--panel-soft);
+  color: var(--primary);
+}
+
+.menu-item.active {
+  background: var(--nav-btn-active-bg);
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+/* 状态和难度指示器 */
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.status-indicator.ac {
+  color: var(--success);
+}
+
+.status-indicator.tried {
+  color: var(--danger);
+}
+
+.status-indicator.fav {
+  color: var(--warning);
+}
+
+.status-indicator.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+/* 标签云 */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sidebar-tag {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-tag:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--panel);
+}
+
+.sidebar-tag.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* 边栏页脚 */
+.sidebar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+
+.total-count {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.clear-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
+.clear-link-btn:hover {
+  text-decoration: underline;
 }
 </style>

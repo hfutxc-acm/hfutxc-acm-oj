@@ -58,15 +58,7 @@ document.addEventListener("DOMContentLoaded", function() {
         
         btn.onclick = () => {
             document.body.setAttribute("data-md-color-primary", c.name);
-            
-            // ELEGANT NATIVE WAY: Update Material's internal palette state
-            if (typeof __md_get !== 'undefined' && typeof __md_set !== 'undefined') {
-                const palette = __md_get("__palette");
-                if (palette && palette.color) {
-                    palette.color.primary = c.name;
-                    __md_set("__palette", palette);
-                }
-            }
+            localStorage.setItem("custom-primary-color", c.name);
             dropdown.style.display = "none";
         };
         dropdown.appendChild(btn);

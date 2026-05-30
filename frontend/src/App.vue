@@ -22,6 +22,8 @@ import AdminHomePage from './pages/AdminHomePage.vue'
 import AdminProblemsPage from './pages/AdminProblemsPage.vue'
 import AdminProblemFormPage from './pages/AdminProblemFormPage.vue'
 import AdminPlaceholderPage from './pages/AdminPlaceholderPage.vue'
+import AdminUsersPage from './pages/admin/AdminUsersPage.vue'
+
 
 const routeComponent = computed(() => {
   const map = {
@@ -62,7 +64,7 @@ const adminComponent = computed(() => {
     'admin-contests': AdminPlaceholderPage,
     'admin-contest-new': AdminPlaceholderPage,
     'admin-trainings': AdminPlaceholderPage,
-    'admin-users': AdminPlaceholderPage
+    'admin-users': AdminUsersPage
   }
   return map[currentRoute.value.name] || AdminHomePage
 })

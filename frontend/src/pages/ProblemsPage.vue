@@ -21,14 +21,11 @@ const filters = ref({
 const filtered = computed(() => {
   const keyword = filters.value.keyword.trim().toLowerCase()
   return problems.value.filter(problem => {
-    // If searchContent is true, you could also search problem.content, but for now we search title/tags
     const text = `${problem.id} ${problem.title} ${(problem.tags || []).join(' ')} ${filters.value.searchContent && problem.content ? problem.content : ''}`.toLowerCase()
     const okKeyword = !keyword || text.includes(keyword)
     const okDifficulty = filters.value.difficulty === '全部' || problem.difficulty === filters.value.difficulty
     const okTag = filters.value.tag === '全部' || problem.tags?.includes(filters.value.tag)
     const okSource = filters.value.source === '全部' || problem.source === filters.value.source
-    
-    // Support stage filtering
     const okStage = filters.value.stage === '全部' || problem.stage === filters.value.stage || !problem.stage
 
     const statusMap = { '未做': 'NONE', '已 AC': 'AC', '尝试过': 'TRIED', '收藏': 'FAVORITE' }
@@ -56,15 +53,78 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="page-grid">
-    <div class="page-heading">
-      <p class="eyebrow">Problem Set</p>
-      <h1>题库</h1>
-      <p>按难度、标签和状态筛选校内训练题目。</p>
+  <div class="problems-layout-container" style="font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+    <!-- 左边栏：过滤器侧边栏 -->
+    <div class="problems-sidebar-wrap">
+      <ProblemFilter :filters="filters" :total="filtered.length" @update="updateFilters" />
     </div>
-    <ProblemFilter :filters="filters" :total="filtered.length" @update="updateFilters" />
-    <ProblemTable v-if="filtered.length" :problems="filtered" />
-    <EmptyState v-else title="没有匹配的题目" description="换一个关键词或筛选条件试试。" />
-    <Pagination :total="filtered.length" />
-  </section>
+
+    <!-- 右边栏：标题与题目表格内容区 -->
+    <div class="problems-content-wrap">
+      <div class="page-heading">
+        <p class="eyebrow">Problem Set</p>
+        <h1>题库</h1>
+        <p>探索合工大宣区精选题目。左侧可使用强大的筛选器过滤算法、题库来源和难度。</p>
+      </div>
+
+      <div class="table-content-area">
+        <ProblemTable v-if="filtered.length" :problems="filtered" />
+        <EmptyState v-else title="没有匹配的题目" description="换一个关键词或筛选条件试试。" />
+        <Pagination v-if="filtered.length" :total="filtered.length" />
+      </div>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.problems-layout-container {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+}
+
+.problems-sidebar-wrap {
+  position: sticky;
+  top: 86px; /* 紧贴顶部导航条 */
+}
+
+.problems-content-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-heading h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--heading-text);
+  margin: 4px 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.page-heading p {
+  color: var(--muted);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.table-content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 响应式媒体查询：移动端适配 */
+@media (max-width: 992px) {
+  .problems-layout-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .problems-sidebar-wrap {
+    position: static;
+  }
+}
+</style>
