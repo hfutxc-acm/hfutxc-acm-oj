@@ -17,6 +17,11 @@ onMounted(async () => {
   problem.value = await getProblem(currentRoute.value.params.pid)
   submissions.value = await getSubmissions()
 })
+
+const onSubmitted = async () => {
+  activeTab.value = 'submissions'
+  submissions.value = await getSubmissions()
+}
 </script>
 
 <template>
@@ -50,7 +55,7 @@ onMounted(async () => {
             <button class="ghost-btn" style="flex: 1;" @click="navigateTo(`/problems/${problem.id}/solutions`)">查看题解</button>
           </div>
         </div>
-        <SubmitCodePanel :problem-id="currentRoute.params.pid" @submitted="activeTab = 'submissions'" />
+        <SubmitCodePanel :problem-id="currentRoute.params.pid" @submitted="onSubmitted" />
       </div>
     </div>
     <SubmissionTable v-else-if="activeTab === 'submissions'" :submissions="submissions.filter(item => String(item.problem_id) === String(currentRoute.params.pid))" />

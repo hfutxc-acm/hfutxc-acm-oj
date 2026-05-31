@@ -1,0 +1,31 @@
+# Dockerfile.backend
+FROM python:3.11-slim-bookworm
+
+# Install basic dependencies (optional for some native extensions)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential g++ \
+    libpango-1.0-0 libpangoft2-1.0-0 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install `uv` for lightning fast python package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Copy requirements or lockfiles first for caching
+COPY requirements.txt .
+
+# Use uv to create a venv and install dependencies
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install -r requirements.txt
+
+# Copy the rest of the backend codebase
+COPY . .
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Run uvicorn server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

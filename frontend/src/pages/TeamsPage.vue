@@ -39,7 +39,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { authStore } from '../stores/authStore'
+import { useAuthStore } from '../stores/authStore'
 import { groupsApi } from '../api/groups'
 
 const teams = ref([])
@@ -55,7 +55,7 @@ async function fetchTeams() {
 }
 
 async function createTeam() {
-  if (!authStore.isAuthenticated) return alert("请先登录")
+  if (!useAuthStore().isAuthenticated) return alert("请先登录")
   if (!newTeam.value.name) return alert('名称不能为空')
   
   try {
@@ -69,7 +69,7 @@ async function createTeam() {
 }
 
 async function joinTeam(groupId) {
-  if (!authStore.isAuthenticated) return alert("请先登录")
+  if (!useAuthStore().isAuthenticated) return alert("请先登录")
   try {
     await groupsApi.joinGroup(groupId)
     alert("加入成功！")

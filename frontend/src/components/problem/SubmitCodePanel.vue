@@ -3,7 +3,9 @@ import { ref, watch, reactive, computed, shallowRef, nextTick } from 'vue'
 import { submitCode } from '../../api/problems'
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 import { templates, registerVscodeDarkTheme, registerCustomCompletions } from '../../utils/monacoCustomizer'
-import { themeStore } from '../../stores/themeStore'
+import { useThemeStore } from '../../stores/themeStore'
+import { useAuthStore } from '../../stores/authStore'
+import { navigateTo } from '../../router'
 
 const props = defineProps({
   problemId: [String, Number]
@@ -46,7 +48,7 @@ watch(settings, (newSettings) => {
 }, { deep: true })
 
 // Sync editor theme with global light/dark mode changes
-watch(() => themeStore.currentTheme, (newGlobalTheme) => {
+watch(() => useThemeStore().currentTheme, (newGlobalTheme) => {
   if (newGlobalTheme === 'light' && (settings.theme === 'vscode-dark' || settings.theme === 'vs-dark' || settings.theme === 'hc-black')) {
     settings.theme = 'vs'
   } else if (newGlobalTheme === 'dark' && settings.theme === 'vs') {
@@ -157,14 +159,22 @@ async function handleSubmit() {
   saving.value = true
   message.value = '提交中...'
   try {
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated || !authStore.currentUser) {
+      message.value = '请先登录'
+      saving.value = false
+      return
+    }
+
     const result = await submitCode({
-      userId: 1, // TODO: 从用户状态存储中获取实际 ID
+      userId: authStore.currentUser.id,
       problemId: props.problemId,
       language: language.value,
       code: trimmedCode
     })
-    message.value = `提交成功，运行 ID #${result.submission_id}`
     emit('submitted', result)
+    // 直接跳转到评测详情页，像 CF 一样实时看结果
+    navigateTo(`/submissions/${result.submission_id}`)
   } catch (error) {
     message.value = error.message
   } finally {

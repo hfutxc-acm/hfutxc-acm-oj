@@ -23,6 +23,9 @@ import AdminProblemsPage from './pages/AdminProblemsPage.vue'
 import AdminProblemFormPage from './pages/AdminProblemFormPage.vue'
 import AdminPlaceholderPage from './pages/AdminPlaceholderPage.vue'
 import AdminUsersPage from './pages/admin/AdminUsersPage.vue'
+import TeamsPage from './pages/TeamsPage.vue'
+import UserProfilePage from './pages/UserProfilePage.vue'
+import AuthPage from './pages/AuthPage.vue'
 
 
 const routeComponent = computed(() => {
@@ -45,8 +48,10 @@ const routeComponent = computed(() => {
     rankings: RankingsPage,
     'freshman-ranking': RankingsPage,
     discussions: PlaceholderPage,
-    'user-profile': ProfilePage,
-    me: ProfilePage,
+    teams: TeamsPage,
+    'user-profile': UserProfilePage,
+    me: UserProfilePage,
+    auth: AuthPage,
     about: PlaceholderPage,
     join: PlaceholderPage,
     forbidden: PlaceholderPage,

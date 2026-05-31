@@ -32,7 +32,7 @@
             </td>
             <td>{{ new Date(user.created_at).toLocaleDateString() }}</td>
             <td>
-              <template v-if="authStore.currentUser?.role === 'super_admin'">
+              <template v-if="useAuthStore().currentUser?.role === 'super_admin'">
                 <button 
                   v-if="user.role === 'user'" 
                   class="btn btn-sm btn-outline danger" 
@@ -46,7 +46,7 @@
                   撤销管理
                 </button>
                 <button 
-                  v-if="user.role !== 'super_admin' && user.id !== authStore.currentUser.id" 
+                  v-if="user.role !== 'super_admin' && user.id !== useAuthStore().currentUser.id" 
                   class="btn btn-sm btn-outline warning ml-2" 
                   style="margin-left: 0.5rem;"
                   @click="transferAdmin(user.id, user.username)">
@@ -64,7 +64,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { authStore, initAuth } from '../../stores/authStore'
+import { useAuthStore } from '../../stores/authStore'
 import { getUsers, updateUserRole, transferSuperAdmin } from '../../api/admin'
 
 const users = ref([])
@@ -97,7 +97,7 @@ async function transferAdmin(userId, username) {
   try {
     await transferSuperAdmin(userId)
     alert("交接成功！您已被降级为普通管理员。")
-    await initAuth() // Refresh current user's role from backend
+    await useAuthStore() // Refresh current user's role from backend
     fetchUsers()
   } catch (e) {
     alert(e.message || "交接失败")

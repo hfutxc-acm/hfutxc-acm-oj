@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 from pydantic import BaseModel
 
 from database import get_db
@@ -18,8 +19,9 @@ class UserCreate(BaseModel):
     password: str
 
 @router.post("/api/login")
-async def login(req: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == req.username).first()
+async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.exec(select(User).where(User.username == req.username))
+    user = result.first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="用户名或密码错误")
     
@@ -27,14 +29,15 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "user_id": user.id, "role": user.role}
 
 @router.post("/api/register")
-async def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.username == user.username).first():
+async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.exec(select(User).where(User.username == user.username))
+    if result.first():
         raise HTTPException(status_code=400, detail="用户名已被注册")
     hashed_pwd = get_password_hash(user.password)
     new_user = User(username=user.username, hashed_password=hashed_pwd)
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
     return {"message": "用户注册成功", "user_id": new_user.id, "username": new_user.username}
 
 @router.get("/api/me")

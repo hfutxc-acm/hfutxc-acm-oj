@@ -1,46 +1,48 @@
-import { reactive } from 'vue'
+import { defineStore } from 'pinia'
 import { navigateTo } from '../router.js'
 
-export const authStore = reactive({
-  token: localStorage.getItem('token') || null,
-  currentUser: null,
-  isAuthenticated: false
-})
-
-export async function initAuth() {
-  if (authStore.token) {
-    try {
-      const res = await fetch('http://localhost:8000/api/me', {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    token: localStorage.getItem('token') || null,
+    currentUser: null,
+    isAuthenticated: false
+  }),
+  actions: {
+    setToken(token) {
+      this.token = token
+      localStorage.setItem('token', token)
+    },
+    logout() {
+      this.token = null
+      this.currentUser = null
+      this.isAuthenticated = false
+      localStorage.removeItem('token')
+      navigateTo('/auth')
+    },
+    async initAuth() {
+      if (this.token) {
+        try {
+          const res = await fetch(`http://${window.location.hostname}:8000/api/me`, {
+            headers: {
+              'Authorization': `Bearer ${this.token}`
+            }
+          })
+          if (res.ok) {
+            this.currentUser = await res.json()
+            this.isAuthenticated = true
+          } else {
+            this.logout()
+          }
+        } catch (e) {
+          this.logout()
         }
-      })
-      if (res.ok) {
-        authStore.currentUser = await res.json()
-        authStore.isAuthenticated = true
-      } else {
-        logout()
       }
-    } catch (e) {
-      logout()
+    }
+  },
+  getters: {
+    canAccessAdmin: (state) => {
+      return state.currentUser?.role === 'admin' || state.currentUser?.role === 'super_admin'
     }
   }
-}
-
-export function setToken(token) {
-  authStore.token = token
-  localStorage.setItem('token', token)
-}
-
-export function logout() {
-  authStore.token = null
-  authStore.currentUser = null
-  authStore.isAuthenticated = false
-  localStorage.removeItem('token')
-  navigateTo('/auth')
-}
-
-export function canAccessAdmin() {
-  return authStore.currentUser?.role === 'admin' || authStore.currentUser?.role === 'super_admin'
-}
+})
 

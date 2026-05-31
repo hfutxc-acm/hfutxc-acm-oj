@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 import uuid
 import shutil
 from pathlib import Path
@@ -10,12 +11,13 @@ from dependencies import get_current_user
 
 router = APIRouter(tags=["users"])
 
-AVATAR_DIR = PROJECT_ROOT / "data" / "avatars"
+AVATAR_DIR = PROJECT_ROOT / "uploads" / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.get("/api/users/{user_id}")
-async def get_user_profile(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.exec(select(User).where(User.id == user_id))
+    user = result.first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     
@@ -31,10 +33,11 @@ async def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/api/users/{user_id}/avatar")
-async def upload_avatar(user_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def upload_avatar(user_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.id != user_id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="无权修改他人头像")
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.exec(select(User).where(User.id == user_id))
+    user = result.first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     if not file.content_type.startswith("image/"):
@@ -48,5 +51,5 @@ async def upload_avatar(user_id: int, file: UploadFile = File(...), current_user
         shutil.copyfileobj(file.file, out)
         
     user.avatar_url = f"/api/uploads/avatars/{filename}"
-    db.commit()
+    await db.commit()
     return {"message": "头像上传成功", "avatar_url": user.avatar_url}

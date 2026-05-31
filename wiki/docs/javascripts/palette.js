@@ -11,26 +11,26 @@ document.addEventListener("DOMContentLoaded", function() {
     picker.style.marginLeft = "10px";
 
     const colors = [
-        { name: "red", hex: "#ef5350" },
-        { name: "pink", hex: "#e91e63" },
-        { name: "purple", hex: "#ab47bc" },
-        { name: "deep purple", hex: "#7e57c2" },
-        { name: "indigo", hex: "#3f51b5" },
-        { name: "blue", hex: "#2196f3" },
-        { name: "light blue", hex: "#03a9f4" },
-        { name: "cyan", hex: "#00bcd4" },
-        { name: "teal", hex: "#009688" },
-        { name: "green", hex: "#4caf50" },
-        { name: "light green", hex: "#8bc34a" },
-        { name: "lime", hex: "#c0ca33" },
-        { name: "yellow", hex: "#fbc02d" },
-        { name: "amber", hex: "#ffc107" },
-        { name: "orange", hex: "#ff9800" },
-        { name: "deep orange", hex: "#ff5722" },
-        { name: "brown", hex: "#795548" },
-        { name: "grey", hex: "#757575" },
-        { name: "blue grey", hex: "#607d8b" },
-        { name: "black", hex: "#000000" }
+        { name: "red", hex: "#ff8787" },
+        { name: "pink", hex: "#fcc2d7" },
+        { name: "purple", hex: "#e599f7" },
+        { name: "deep-purple", hex: "#b197fc" },
+        { name: "indigo", hex: "#91a7ff" },
+        { name: "blue", hex: "#74c0fc" },
+        { name: "light-blue", hex: "#66d9e8" },
+        { name: "cyan", hex: "#63e6be" },
+        { name: "teal", hex: "#38d9a9" },
+        { name: "green", hex: "#8ce99a" },
+        { name: "light-green", hex: "#b2f2bb" },
+        { name: "lime", hex: "#d8f5a2" },
+        { name: "yellow", hex: "#ffec99" },
+        { name: "amber", hex: "#ffe066" },
+        { name: "orange", hex: "#ffd43b" },
+        { name: "rainbow", hex: "linear-gradient(to right, #ff6b6b, #ffb347, #ffeb3b, #77dd77, #4dd0e1, #64b5f6, #ba68c8)", isRainbow: true },
+        { name: "brown", hex: "#e6ca90" },
+        { name: "grey", hex: "#ced4da" },
+        { name: "blue-grey", hex: "#a5d8ff" },
+        { name: "black", hex: "#868e96" }
     ];
     
     // Custom dropdown
@@ -54,11 +54,15 @@ document.addEventListener("DOMContentLoaded", function() {
         btn.style.borderRadius = "50%";
         btn.style.cursor = "pointer";
         btn.setAttribute("title", c.name);
-        btn.style.backgroundColor = c.hex;
+        if (c.isRainbow) {
+            btn.style.background = c.hex;
+        } else {
+            btn.style.backgroundColor = c.hex;
+        }
         
         btn.onclick = () => {
-            document.body.setAttribute("data-md-color-primary", c.name);
             localStorage.setItem("custom-primary-color", c.name);
+            document.body.setAttribute("data-md-color-primary", c.name);
             dropdown.style.display = "none";
         };
         dropdown.appendChild(btn);

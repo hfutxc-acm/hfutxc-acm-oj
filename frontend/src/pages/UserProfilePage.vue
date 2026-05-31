@@ -43,16 +43,16 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { currentRoute } from '../router.js'
-import { authStore } from '../stores/authStore'
+import { currentRoute, navigateTo } from '../router.js'
+import { useAuthStore } from '../stores/authStore'
 import { usersApi } from '../api/users'
 
 const user = ref(null)
 const fileInput = ref(null)
 
 const canEditAvatar = computed(() => {
-  if (!authStore.isAuthenticated) return false
-  return authStore.currentUser?.id === user.value?.id || ['admin', 'super_admin'].includes(authStore.currentUser?.role)
+  if (!useAuthStore().isAuthenticated) return false
+  return useAuthStore().currentUser?.id === user.value?.id || ['admin', 'super_admin'].includes(useAuthStore().currentUser?.role)
 })
 
 function getAvatarUrl(u) {
@@ -75,8 +75,8 @@ async function handleFileUpload(event) {
   try {
     const data = await usersApi.uploadAvatar(user.value.id, file)
     user.value.avatar_url = data.avatar_url
-    if (authStore.currentUser?.id === user.value.id) {
-      authStore.currentUser.avatar_url = data.avatar_url
+    if (useAuthStore().currentUser?.id === user.value.id) {
+      useAuthStore().currentUser.avatar_url = data.avatar_url
     }
     alert("头像更换成功！")
   } catch (e) {
@@ -88,7 +88,21 @@ async function handleFileUpload(event) {
 
 onMounted(async () => {
   try {
-    const data = await usersApi.getUserProfile(currentRoute.value.params.uid)
+    let uid = currentRoute.value.params.uid
+    if (currentRoute.value.name === 'me') {
+      if (!useAuthStore().isAuthenticated) {
+        alert("请先登录")
+        navigateTo('/auth')
+        return
+      }
+      uid = useAuthStore().currentUser?.id
+    }
+    if (!uid) {
+      alert("用户不存在")
+      navigateTo('/')
+      return
+    }
+    const data = await usersApi.getUserProfile(uid)
     user.value = data
   } catch (e) {
     alert(e.message || "用户不存在")

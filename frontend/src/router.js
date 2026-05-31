@@ -1,5 +1,5 @@
 import { computed, reactive } from 'vue'
-import { canAccessAdmin } from './stores/authStore'
+import { useAuthStore } from './stores/authStore'
 
 const routes = [
   { name: 'home', path: /^\/$/, title: '首页' },
@@ -49,7 +49,7 @@ function matchRoute(path) {
       route.keys?.forEach((key, index) => {
         params[key] = decodeURIComponent(match[index + 1])
       })
-      if (route.admin && !canAccessAdmin()) {
+      if (route.admin && !useAuthStore().canAccessAdmin) {
         return { name: 'forbidden', title: '无权访问', params: {}, query: routeState.query }
       }
       return { ...route, params, query: routeState.query }

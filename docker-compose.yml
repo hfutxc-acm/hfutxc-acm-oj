@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5174:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    networks:
+      - oj_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      # 将 SQLite 数据库持久化到宿主机（如果部署在 Coolify，将会作为 Docker 卷挂载）
+      - oj_data:/app/data
+    environment:
+      # 如果有 JWT_SECRET 或其他生产环境变数，可在此处定义，Coolify 可通过控制面板注入
+      - JWT_SECRET=production_secret_key_change_me
+      - JUDGE0_API_URL=local
+    networks:
+      - oj_network
+
+volumes:
+  oj_data:
+
+networks:
+  oj_network:
+    driver: bridge

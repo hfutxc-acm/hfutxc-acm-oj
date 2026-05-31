@@ -1,6 +1,6 @@
-import { authStore, logout } from '../stores/authStore'
+import { useAuthStore } from '../stores/authStore'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`
 
 export async function request(path, options = {}) {
   const headers = {
@@ -8,8 +8,8 @@ export async function request(path, options = {}) {
     ...(options.headers || {})
   }
 
-  if (authStore.token) {
-    headers['Authorization'] = `Bearer ${authStore.token}`
+  if (useAuthStore().token) {
+    headers['Authorization'] = `Bearer ${useAuthStore().token}`
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -25,8 +25,8 @@ export async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401 && authStore.isAuthenticated) {
-      logout()
+    if (response.status === 401 && useAuthStore().isAuthenticated) {
+      useAuthStore()
     }
     const message = data?.detail || data?.message || `请求失败：${response.status}`
     throw new Error(Array.isArray(message) ? message.map(item => item.msg).join('; ') : message)

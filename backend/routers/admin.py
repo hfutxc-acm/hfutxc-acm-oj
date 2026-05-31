@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.orm import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 
 from database import get_db
 from models import User
@@ -8,8 +9,9 @@ from dependencies import check_admin_role, check_super_admin_role
 router = APIRouter(tags=["admin"])
 
 @router.get("/api/admin/users")
-async def get_all_users(current_user: User = Depends(check_admin_role), db: Session = Depends(get_db)):
-    users = db.query(User).all()
+async def get_all_users(current_user: User = Depends(check_admin_role), db: AsyncSession = Depends(get_db)):
+    result = await db.exec(select(User))
+    users = result.all()
     return [{
         "id": u.id,
         "username": u.username,
@@ -20,10 +22,11 @@ async def get_all_users(current_user: User = Depends(check_admin_role), db: Sess
     } for u in users]
 
 @router.put("/api/admin/users/{user_id}/role")
-async def update_user_role(user_id: int, role: str = Body(embed=True), current_user: User = Depends(check_super_admin_role), db: Session = Depends(get_db)):
+async def update_user_role(user_id: int, role: str = Body(embed=True), current_user: User = Depends(check_super_admin_role), db: AsyncSession = Depends(get_db)):
     if role not in ["admin", "user"]:
         raise HTTPException(status_code=400, detail="无效的角色")
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.exec(select(User).where(User.id == user_id))
+    user = result.first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.id == current_user.id:
@@ -32,12 +35,13 @@ async def update_user_role(user_id: int, role: str = Body(embed=True), current_u
         raise HTTPException(status_code=400, detail="不能修改超级管理员的角色")
     
     user.role = role
-    db.commit()
+    await db.commit()
     return {"message": "角色更新成功", "role": user.role}
 
 @router.post("/api/admin/transfer_super_admin/{user_id}")
-async def transfer_super_admin(user_id: int, current_user: User = Depends(check_super_admin_role), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+async def transfer_super_admin(user_id: int, current_user: User = Depends(check_super_admin_role), db: AsyncSession = Depends(get_db)):
+    result = await db.exec(select(User).where(User.id == user_id))
+    user = result.first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.id == current_user.id:
@@ -47,5 +51,5 @@ async def transfer_super_admin(user_id: int, current_user: User = Depends(check_
     user.role = "super_admin"
     current_user.role = "admin"
     
-    db.commit()
+    await db.commit()
     return {"message": "交接成功", "new_super_admin_id": user.id}

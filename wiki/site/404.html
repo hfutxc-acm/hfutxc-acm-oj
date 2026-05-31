@@ -54,21 +54,123 @@
     
     
   
+  <style>
+    /* 彩虹色主题 (Rainbow Theme) */
+    body[data-md-color-primary="rainbow"] .md-header {
+      background: linear-gradient(to right, #ff6b6b, #ffb347, #ffeb3b, #77dd77, #4dd0e1, #64b5f6, #ba68c8, #ff6b6b, #ffb347, #ffeb3b, #77dd77, #4dd0e1, #64b5f6, #ba68c8) !important;
+      background-size: 200% 100% !important;
+      animation: rainbow-animation 10s linear infinite !important;
+    }
+    body[data-md-color-primary="rainbow"] .md-tabs {
+      background: linear-gradient(to right, #ff6b6b, #ffb347, #ffeb3b, #77dd77, #4dd0e1, #64b5f6, #ba68c8, #ff6b6b, #ffb347, #ffeb3b, #77dd77, #4dd0e1, #64b5f6, #ba68c8) !important;
+      background-size: 200% 100% !important;
+      animation: rainbow-animation 10s linear infinite !important;
+    }
+    body[data-md-color-primary="rainbow"] {
+      --md-primary-fg-color: #ff0000 !important;
+      --md-primary-fg-color--light: #ff7f00 !important;
+      --md-primary-fg-color--dark: #8b00ff !important;
+    }
+    @keyframes rainbow-animation {
+      0% { background-position: 0% 0%; }
+      50% { background-position: 100% 0%; }
+      100% { background-position: 0% 0%; }
+    }
+
+    /* Macaron Colors Override */
+    body[data-md-color-primary="red"] { --md-primary-fg-color: #ff8787 !important; --md-primary-fg-color--dark: #fa5252 !important; }
+    body[data-md-color-primary="pink"] { --md-primary-fg-color: #fcc2d7 !important; --md-primary-fg-color--dark: #f06595 !important; }
+    body[data-md-color-primary="purple"] { --md-primary-fg-color: #e599f7 !important; --md-primary-fg-color--dark: #cc5de8 !important; }
+    body[data-md-color-primary="deep-purple"] { --md-primary-fg-color: #b197fc !important; --md-primary-fg-color--dark: #845ef7 !important; }
+    body[data-md-color-primary="indigo"] { --md-primary-fg-color: #91a7ff !important; --md-primary-fg-color--dark: #5c7cfa !important; }
+    body[data-md-color-primary="blue"] { --md-primary-fg-color: #74c0fc !important; --md-primary-fg-color--dark: #339af0 !important; }
+    body[data-md-color-primary="light-blue"] { --md-primary-fg-color: #66d9e8 !important; --md-primary-fg-color--dark: #22b8cf !important; }
+    body[data-md-color-primary="cyan"] { --md-primary-fg-color: #63e6be !important; --md-primary-fg-color--dark: #20c997 !important; }
+    body[data-md-color-primary="teal"] { --md-primary-fg-color: #38d9a9 !important; --md-primary-fg-color--dark: #12b886 !important; }
+    body[data-md-color-primary="green"] { --md-primary-fg-color: #8ce99a !important; --md-primary-fg-color--dark: #51cf66 !important; }
+    body[data-md-color-primary="light-green"] { --md-primary-fg-color: #b2f2bb !important; --md-primary-fg-color--dark: #8ce99a !important; }
+    body[data-md-color-primary="lime"] { --md-primary-fg-color: #d8f5a2 !important; --md-primary-fg-color--dark: #c0eb75 !important; }
+    body[data-md-color-primary="yellow"] { --md-primary-fg-color: #ffec99 !important; --md-primary-fg-color--dark: #fcc419 !important; }
+    body[data-md-color-primary="amber"] { --md-primary-fg-color: #ffe066 !important; --md-primary-fg-color--dark: #fab005 !important; }
+    body[data-md-color-primary="orange"] { --md-primary-fg-color: #ffd43b !important; --md-primary-fg-color--dark: #fd7e14 !important; }
+    body[data-md-color-primary="brown"] { --md-primary-fg-color: #e6ca90 !important; --md-primary-fg-color--dark: #d4a373 !important; }
+    body[data-md-color-primary="grey"] { --md-primary-fg-color: #ced4da !important; --md-primary-fg-color--dark: #adb5bd !important; }
+    body[data-md-color-primary="blue-grey"] { --md-primary-fg-color: #a5d8ff !important; --md-primary-fg-color--dark: #8fa8c8 !important; }
+    body[data-md-color-primary="black"] { --md-primary-fg-color: #868e96 !important; --md-primary-fg-color--dark: #495057 !important; }
+
+  </style>
   <script>
     (function() {
-      var savedColor = localStorage.getItem("custom-primary-color");
-      if (savedColor) {
-        var applyColor = function() {
-          if (document.body && document.body.getAttribute("data-md-color-primary") !== savedColor) {
+      // 1. 同步并监听主站的主题模式 (oj-theme) 与 Primary 颜色
+      function syncTheme() {
+        var ojTheme = localStorage.getItem("oj-theme");
+        if (ojTheme) {
+          var scheme = ojTheme === "dark" ? "slate" : "default";
+          if (document.body && document.body.getAttribute("data-md-color-scheme") !== scheme) {
+            document.body.setAttribute("data-md-color-scheme", scheme);
+          }
+        }
+      }
+
+      function syncPrimaryColor() {
+        var savedColor = localStorage.getItem("custom-primary-color");
+        if (savedColor && document.body) {
+          if (document.body.getAttribute("data-md-color-primary") !== savedColor) {
             document.body.setAttribute("data-md-color-primary", savedColor);
           }
-        };
-        var observer = new MutationObserver(applyColor);
-        observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-md-color-primary"] });
+        }
       }
+
+      // 实时双向绑定机制：外部（主站）更新或内部点击切换时，实时同步，彻底杜绝回退 Bug
+      var bodyObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.attributeName === "data-md-color-scheme" && document.body) {
+            var currentScheme = document.body.getAttribute("data-md-color-scheme");
+            var themeVal = currentScheme === "slate" ? "dark" : "light";
+            if (localStorage.getItem("oj-theme") !== themeVal) {
+              localStorage.setItem("oj-theme", themeVal);
+            }
+          }
+          if (mutation.attributeName === "data-md-color-primary" && document.body) {
+            // 坚决以 localStorage 存储的值为最高优先级，防止黑白模式切换时被 MkDocs 重置为默认的 teal
+            var savedColor = localStorage.getItem("custom-primary-color");
+            if (savedColor) {
+              var currentPrimary = document.body.getAttribute("data-md-color-primary");
+              if (currentPrimary !== savedColor) {
+                document.body.setAttribute("data-md-color-primary", savedColor);
+              }
+            }
+          }
+        });
+      });
+
+      var checkBody = setInterval(function() {
+        if (document.body) {
+          clearInterval(checkBody);
+          syncTheme();
+          syncPrimaryColor();
+
+          document.addEventListener("DOMContentLoaded", function() {
+            syncTheme();
+            syncPrimaryColor();
+          });
+
+          // 延迟 300ms 开启监听，避开 MkDocs 官方脚本初始化时的默认值重置，保障数据在刷新后坚挺持久
+          setTimeout(function() {
+            syncTheme();
+            syncPrimaryColor();
+            bodyObserver.observe(document.body, { attributes: true, attributeFilter: ["data-md-color-scheme", "data-md-color-primary"] });
+          }, 300);
+        }
+      }, 10);
 
       // 让左上角标题文字和Logo在点击时坚决返回 OJ 首页 (/)
       document.addEventListener("DOMContentLoaded", function() {
+        var targetUrl = "/";
+        if (window.location.port === "8000") {
+          targetUrl = window.location.protocol + "//" + window.location.hostname + ":5173/";
+        }
+
         // 1. 让页眉左上角文本标题点击可返回 OJ
         var headerTitle = document.querySelector(".md-header__title");
         if (headerTitle) {
@@ -77,17 +179,17 @@
           headerTitle.addEventListener("click", function(e) {
             // 阻止默认可能触发的 Drawer 抽屉切换等事件
             e.stopPropagation();
-            window.location.href = "/";
+            window.location.href = targetUrl;
           });
         }
 
-        // 2. 让页眉 Logo 的链接明确重定向至 /
+        // 2. 让页眉 Logo 的链接明确重定向至 targetUrl
         var logoBtn = document.querySelector(".md-header__button.md-logo");
         if (logoBtn) {
-          logoBtn.setAttribute("href", "/");
+          logoBtn.setAttribute("href", targetUrl);
           logoBtn.addEventListener("click", function(e) {
             e.preventDefault();
-            window.location.href = "/";
+            window.location.href = targetUrl;
           });
         }
 
@@ -100,7 +202,7 @@
             // 点击文字时触发跳转
             if (e.target.tagName !== "SVG" && e.target.tagName !== "path") {
               e.stopPropagation();
-              window.location.href = "/";
+              window.location.href = targetUrl;
             }
           });
         }

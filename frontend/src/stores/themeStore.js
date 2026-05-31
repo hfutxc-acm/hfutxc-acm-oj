@@ -1,4 +1,5 @@
-import { reactive, watch } from 'vue'
+import { watch, ref } from 'vue'
+import { defineStore } from 'pinia'
 
 const getStoredTheme = () => {
   try {
@@ -11,25 +12,30 @@ const getStoredTheme = () => {
   }
 }
 
-export const themeStore = reactive({
-  currentTheme: getStoredTheme()
+export const useThemeStore = defineStore('theme', () => {
+  const currentTheme = ref(getStoredTheme())
+
+  function toggleTheme() {
+    currentTheme.value = currentTheme.value === 'dark' ? 'light' : 'dark'
+  }
+
+  // Watch theme changes and apply it to document root class list
+  watch(currentTheme, (newTheme) => {
+    const root = document.documentElement
+    if (newTheme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    try {
+      localStorage.setItem('oj-theme', newTheme)
+    } catch (e) {
+      console.error('Failed to save theme preference', e)
+    }
+  }, { immediate: true })
+
+  return {
+    currentTheme,
+    toggleTheme
+  }
 })
-
-export function toggleTheme() {
-  themeStore.currentTheme = themeStore.currentTheme === 'dark' ? 'light' : 'dark'
-}
-
-// Watch theme changes and apply it to document root class list
-watch(() => themeStore.currentTheme, (newTheme) => {
-  const root = document.documentElement
-  if (newTheme === 'dark') {
-    root.classList.add('dark')
-  } else {
-    root.classList.remove('dark')
-  }
-  try {
-    localStorage.setItem('oj-theme', newTheme)
-  } catch (e) {
-    console.error('Failed to save theme preference', e)
-  }
-}, { immediate: true })

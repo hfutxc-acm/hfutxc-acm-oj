@@ -26,8 +26,8 @@ onMounted(async () => {
       <h1>合肥工业大学宣城校区程序设计训练平台</h1>
       <p>面向新手引导、系统训练、比赛交流与梯队建设的现代校园 OJ</p>
       <div class="hero-actions">
-        <button class="primary-btn" @click="navigateTo('/problems')">开始刷题</button>
-        <button class="ghost-btn" @click="navigateTo('/trainings')">查看训练路线</button>
+        <button class="primary-btn" @click="navigateTo('/trainings')">查看训练路线</button>
+        <button class="ghost-btn" @click="navigateTo('/problems')">开始刷题</button>
         <button class="ghost-btn" @click="navigateTo('/about/join')">加入我们</button>
       </div>
     </section>
