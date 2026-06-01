@@ -75,13 +75,14 @@ const adminComponent = computed(() => {
 })
 
 const isAdminRoute = computed(() => currentRoute.value.name?.startsWith('admin'))
+const isAuthRoute = computed(() => currentRoute.value.name === 'auth')
 
 onMounted(initRouter)
 onUnmounted(destroyRouter)
 </script>
 
 <template>
-  <MainLayout>
+  <MainLayout :auth-mode="isAuthRoute">
     <AdminLayout v-if="isAdminRoute">
       <component :is="adminComponent" :key="currentRoute.path" />
     </AdminLayout>

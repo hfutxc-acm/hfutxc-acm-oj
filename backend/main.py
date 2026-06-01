@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import inspect, text, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 try:
     from .database import Base, PROJECT_ROOT, SessionLocal, engine, get_db
@@ -88,8 +89,18 @@ app.include_router(printer_router.router)
 app.include_router(ai_router.router)
 app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
-wiki_site_path = PROJECT_ROOT / "wiki" / "site"
-if wiki_site_path.exists():
+# Support multiple possible paths for wiki/site to handle both Docker container (/app/wiki/site) and local dev (PROJECT_ROOT.parent/wiki/site)
+possible_wiki_paths = [
+    PROJECT_ROOT / "wiki" / "site",
+    PROJECT_ROOT.parent / "wiki" / "site",
+]
+wiki_site_path = None
+for path in possible_wiki_paths:
+    if path.exists() and (path / "index.html").exists():
+        wiki_site_path = path
+        break
+
+if wiki_site_path:
     app.mount("/wiki", StaticFiles(directory=str(wiki_site_path), html=True), name="wiki")
 
 app.add_middleware(
@@ -124,7 +135,14 @@ class DeleteProblemConfirm(BaseModel):
 
 
 def testcase_count(problem: Problem) -> int:
-    return len(problem.testcases or [])
+    try:
+        # Check if the relationship is already loaded to avoid raising MissingGreenlet in async context
+        state = getattr(problem, "_sa_instance_state", None)
+        if state and "testcases" in state.unloaded:
+            return 0
+        return len(problem.testcases or [])
+    except Exception:
+        return 0
 
 
 def serialize_problem(problem: Problem):
@@ -255,12 +273,15 @@ async def replace_problem_data(problem_id: int, upload_path: Path, orders: list[
 
 @app.get("/api/problems")
 async def get_problem_list(db: AsyncSession = Depends(get_db)):
-    return [serialize_problem(problem) for problem in (await db.exec(select(Problem).order_by(Problem.id.asc()))).all()]
+    stmt = select(Problem).options(selectinload(Problem.testcases)).order_by(Problem.id.asc())
+    problems = (await db.exec(stmt)).all()
+    return [serialize_problem(problem) for problem in problems]
 
 
 @app.get("/api/problems/{problem_id}")
 async def get_problem_detail(problem_id: int, db: AsyncSession = Depends(get_db)):
-    problem = (await db.exec(select(Problem).where(Problem.id == problem_id))).first()
+    stmt = select(Problem).options(selectinload(Problem.testcases)).where(Problem.id == problem_id)
+    problem = (await db.exec(stmt)).first()
     if not problem:
         raise HTTPException(status_code=404, detail="题目不存在")
     return serialize_problem(problem)
@@ -289,7 +310,8 @@ async def create_problem(
 
 @app.put("/api/admin/problems/{problem_id}")
 async def update_problem(problem_id: int, payload: ProblemPayload, db: AsyncSession = Depends(get_db)):
-    problem = (await db.exec(select(Problem).where(Problem.id == problem_id))).first()
+    stmt = select(Problem).options(selectinload(Problem.testcases)).where(Problem.id == problem_id)
+    problem = (await db.exec(stmt)).first()
     if not problem:
         raise HTTPException(status_code=404, detail="题目不存在")
     apply_problem_payload(problem, payload)
@@ -370,7 +392,7 @@ async def upload_testcases(problem_id: int, file: UploadFile = File(...), db: As
         with upload_path.open("wb") as out:
             shutil.copyfileobj(file.file, out)
         orders = validate_zip_members(upload_path)
-        replace_problem_data(problem_id, upload_path, orders, db)
+        await replace_problem_data(problem_id, upload_path, orders, db)
 
     return {"message": "uploaded", "problem_id": problem_id, "case_count": len(orders)}
 
@@ -402,7 +424,7 @@ async def submit_code(req: SubmitCodeRequest, background_tasks: BackgroundTasks,
     )
     db.add(new_submission)
     await db.commit()
-    db.refresh(new_submission)
+    await db.refresh(new_submission)
 
     from services.judge_worker import judge_queue
     await judge_queue.put(new_submission.id)

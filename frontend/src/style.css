@@ -128,6 +128,19 @@ button {
   flex: 1;
 }
 
+/* Auth page: no padding, no max-width, full viewport */
+.auth-shell {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+}
+.auth-mode {
+  background: #0a0012;
+}
+
 .app-footer {
   display: flex;
   justify-content: space-between;
