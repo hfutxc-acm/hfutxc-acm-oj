@@ -22,7 +22,8 @@ export const useAuthStore = defineStore('auth', {
     async initAuth() {
       if (this.token) {
         try {
-          const res = await fetch(`http://${window.location.hostname}:8000/api/me`, {
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`
+          const res = await fetch(`${API_BASE_URL}/api/me`, {
             headers: {
               'Authorization': `Bearer ${this.token}`
             }

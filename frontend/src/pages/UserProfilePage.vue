@@ -57,7 +57,8 @@ const canEditAvatar = computed(() => {
 
 function getAvatarUrl(u) {
   if (u.avatar_url) {
-    return u.avatar_url.startsWith('/') ? `http://localhost:8000${u.avatar_url}` : u.avatar_url
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`
+    return u.avatar_url.startsWith('/') ? `${API_BASE_URL}${u.avatar_url}` : u.avatar_url
   }
   return 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + u.username
 }
