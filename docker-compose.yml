@@ -29,10 +29,13 @@ services:
       # 将 SQLite 数据库持久化到宿主机（如果部署在 Coolify，将会作为 Docker 卷挂载）
       - oj_data:/app/data
       # wiki/site is now baked into the image via Dockerfile
+    extra_hosts:
+      # 让容器内可以通过 host.docker.internal 访问宿主机上的 Judge0
+      - "host.docker.internal:host-gateway"
     environment:
       # 如果有 JWT_SECRET 或其他生产环境变数，可在此处定义，Coolify 可通过控制面板注入
       - JWT_SECRET=${JWT_SECRET:-production_secret_key_change_me}
-      - JUDGE0_API_URL=${JUDGE0_API_URL:-local}
+      - JUDGE0_API_URL=${JUDGE0_API_URL:-http://host.docker.internal:2358}
     networks:
       - oj_network
 

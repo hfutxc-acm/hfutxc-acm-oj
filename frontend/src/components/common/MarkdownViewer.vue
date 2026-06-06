@@ -1,22 +1,29 @@
 <script setup>
 import { computed } from 'vue'
-import MarkdownIt from 'markdown-it'
-import markdownItKatex from '@traptitech/markdown-it-katex'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkMath from 'remark-math'
+import remarkRehype from 'remark-rehype'
+import rehypeRaw from 'rehype-raw'
+import rehypeKatex from 'rehype-katex'
+import rehypeStringify from 'rehype-stringify'
 import 'katex/dist/katex.min.css'
 
 const props = defineProps({
   content: { type: String, default: '' }
 })
 
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typography: true
-}).use(markdownItKatex)
+const processor = unified()
+  .use(remarkParse)          // Markdown AST 解析
+  .use(remarkMath)           // 识别 $...$ 和 $$...$$ 数学块
+  .use(remarkRehype, { allowDangerousHtml: true }) // 转换为 HTML AST，保留原始 HTML
+  .use(rehypeRaw)            // 处理 HTML 节点
+  .use(rehypeKatex, { throwOnError: false, errorColor: '#cc0000' }) // KaTeX 渲染
+  .use(rehypeStringify, { allowDangerousHtml: true }) // 输出 HTML 字符串
 
 const renderedContent = computed(() => {
   if (!props.content) return '暂无内容'
-  return md.render(props.content)
+  return String(processor.processSync(props.content))
 })
 </script>
 
